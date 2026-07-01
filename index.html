@@ -14,9 +14,6 @@
 <body>
 <div class="layout">
   <nav class="side">
-    <button class="load" onclick="document.getElementById('sapFile').click()">📂 Cargar SAP</button>
-    <button class="load" onclick="document.getElementById('planFile').click()">📅 Cargar Plan Semanal</button>
-    <hr style="border:0;border-top:1px solid rgba(255,255,255,.25);margin:16px 4px">
     <button class="active" data-view="resumen" onclick="showView('resumen')">📊 Resumen</button>
     <button data-view="plan" onclick="showView('plan')">📋 Plan Semanal</button>
   </nav>
@@ -27,24 +24,19 @@
       <div class="cumplHH"><b>CUMPLIMIENTO HH</b><div class="big" id="topCumpl">0,0%</div><span id="topMeta">Bajo la meta</span></div>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-06-2026 al 30-06-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v2.7</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-06-2026 al 30-06-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.0</b></div></section>
 
     <section class="filters">
       <div><label>META HH MENSUAL</label><input id="metaHH" type="number" value="350"></div>
       <div><label>FECHA DESDE</label><input id="desde" type="date" value="2026-06-01"></div>
       <div><label>FECHA HASTA</label><input id="hasta" type="date" value="2026-06-30"></div>
       <div><label>CLASE DE ORDEN</label><select id="claseFiltro"><option>Todas</option></select></div>
-      <button class="primary" onclick="procesar()">↻ ACTUALIZAR</button>
+      <button class="primary" onclick="cargarDatosGithub()">↻ ACTUALIZAR</button>
     </section>
 
-    <section class="loadPanel" id="cargaArchivos">
-      <div class="loadGrid">
-        <div><label>Archivo SAP HH / notificaciones</label><input id="sapFile" type="file" accept=".xlsx,.xls,.csv"></div>
-        <div><label>Plan semanal enviado por Claudio en Excel</label><input id="planFile" type="file" accept=".xlsx,.xls,.csv"></div>
-        <button class="primary" onclick="procesar()">Generar dashboard</button>
-        <button class="primary" style="background:#6b7280" onclick="limpiarArchivos()">Limpiar archivos</button>
-      </div>
-      <div class="statusLine" id="estadoCarga">SAP: pendiente | Plan semanal: pendiente</div><div class="miniHelp">Los archivos quedan guardados en este navegador hasta que cargues uno nuevo o presiones Limpiar archivos.</div>
+    <section class="loadPanel" id="estadoDatosPanel">
+      <div class="statusLine" id="estadoCarga">Cargando datos desde GitHub...</div>
+      <div class="miniHelp">Fuente de datos: <b>datos/sap.xlsx</b> y <b>datos/plan_semanal.xlsx</b>. Solo el administrador reemplaza estos archivos en GitHub.</div>
     </section>
 
     <section id="resumen" class="view active">
@@ -77,7 +69,7 @@
   </main>
 </div>
 <script>
-let sapRows=[],sap=[],planRows=[],plan=[],charts={};
+let sapRows=[],sap=[],planRows=[],plan=[],charts={}, sapArchivo="datos/sap.xlsx", planArchivo="datos/plan_semanal.xlsx", ultimaCarga="Pendiente";
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
 const $=id=>document.getElementById(id); const fmt=n=>Number(n||0).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1});
@@ -156,10 +148,30 @@ function mesesPeriodo(desde,hasta){
   let a=d<=h?d:h, b=d<=h?h:d;
   return (b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())+1;
 }
-async function procesar(){try{if($('sapFile').files[0]){await guardarArchivoLocal('sap',$('sapFile').files[0]);sapRows=await readWB($('sapFile').files[0]);sap=mapSAP(sapRows)} if($('planFile').files[0]){await guardarArchivoLocal('plan',$('planFile').files[0]);planRows=await readWB($('planFile').files[0]);plan=mapPlan(planRows)} render()}catch(e){alert('No pude leer el archivo o guardarlo: '+e.message)}}
-function cargarArchivosGuardados(){try{let gs=cargarGuardado('sap');if(gs){sapRows=gs.rows;sap=mapSAP(sapRows)}let gp=cargarGuardado('plan');if(gp){planRows=gp.rows;plan=mapPlan(planRows)}}catch(e){console.warn('No pude cargar archivos guardados',e)}}
+async function leerExcelGithub(ruta){
+  const url=ruta+'?v='+Date.now();
+  const resp=await fetch(url,{cache:'no-store'});
+  if(!resp.ok)throw new Error('No se pudo leer '+ruta+' (HTTP '+resp.status+')');
+  const buffer=await resp.arrayBuffer();
+  return parseWB(buffer);
+}
+async function cargarDatosGithub(){
+  try{
+    $('estadoCarga').innerHTML='Cargando datos desde GitHub... <span class="gray pill">esperando</span>';
+    sapRows=await leerExcelGithub(sapArchivo);
+    sap=mapSAP(sapRows);
+    planRows=await leerExcelGithub(planArchivo);
+    plan=mapPlan(planRows);
+    ultimaCarga=new Date().toLocaleString('es-CL');
+    render();
+  }catch(e){
+    console.error(e);
+    $('estadoCarga').innerHTML=`No se pudieron cargar los datos desde GitHub. Verifica que existan <b>${sapArchivo}</b> y <b>${planArchivo}</b>. <span class="bad pill">${e.message}</span>`;
+    render();
+  }
+}
 function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=toNum($('metaHH').value),meses=mesesPeriodo(desde,hasta),meta=metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta));let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
- let hh=sapF.reduce((a,b)=>a+b.hh,0); let ot=unique(sapF.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title='Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');let sapName=localStorage.getItem('hh_sap_name')||($('sapFile').files[0]?.name)||'pendiente';let planName=localStorage.getItem('hh_plan_name')||($('planFile').files[0]?.name)||'pendiente';$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapName}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planName}</span>`;
+ let hh=sapF.reduce((a,b)=>a+b.hh,0); let ot=unique(sapF.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title='Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
  let dias={};sapF.forEach(x=>{let f=x.fecha||'Sin fecha'; if(!dias[f])dias[f]={hh:0,ots:new Set()};dias[f].hh+=x.hh;dias[f].ots.add(x.ot)});let labels=Object.keys(dias).sort();let metaDia=metaMensual/30;
  let periodoMes=periodoMesesLabel(desde,hasta);
  if($('tituloChartMes'))$('tituloChartMes').textContent='HH Real vs Meta HH - '+periodoMes;
@@ -171,7 +183,7 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td>${p.aviso}</td><td><b>${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><span class="pill ${p.estado==='Notificada'?'ok':'bad'}">${p.estado}</span></td></tr>`));}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
-$('sapFile').addEventListener('change',procesar);$('planFile').addEventListener('change',procesar);cargarArchivosGuardados();render();
+cargarDatosGithub();
 </script>
 </body>
 </html>
