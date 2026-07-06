@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.1 - Piscicultura Lago Verde</title>
+<title>Dashboard HH Mantención SAP v3.2 - Piscicultura Lago Verde</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--azul:#062b63;--azul2:#0a6ee8;--fondo:#f4f7fb;--borde:#d9e3f0;--texto:#062b63;--verde:#16a34a;--rojo:#dc2626;--amarillo:#f59e0b;--morado:#6d45c9;--celeste:#dff0ff;--sombra:0 4px 16px rgba(2,27,70,.08)}
-*{box-sizing:border-box}body{margin:0;background:var(--fondo);font-family:Arial,Helvetica,sans-serif;color:var(--texto);font-size:14px}.layout{display:flex;min-height:100vh}.side{width:190px;background:#072f6b;color:white;position:fixed;top:0;bottom:0;left:0;padding:14px 12px}.brandMini{font-weight:900;font-size:15px;margin-bottom:22px}.side button,.side a{display:block;width:100%;border:0;border-radius:8px;padding:14px 12px;margin:7px 0;text-align:left;background:transparent;color:white;font-weight:800;cursor:pointer;text-decoration:none}.side button.active{background:#0d58b7}.side button.load{background:#0a74f0;text-align:center}.main{margin-left:190px;width:calc(100% - 190px);padding:8px 18px 24px}.top{background:white;border:1px solid var(--borde);border-radius:12px;padding:16px 22px;display:grid;grid-template-columns:260px 1fr 180px;align-items:center;gap:15px;box-shadow:var(--sombra)}.logo{display:flex;align-items:center}.logo img{max-width:262px;width:100%;height:auto;display:block}.title{text-align:center}.title h1{margin:0;font-size:30px}.title h2{margin:8px 0 6px;font-size:24px;color:#0272ff}.periodo{font-weight:800}.cumplHH{text-align:center;border:1px solid var(--borde);border-radius:10px;padding:12px;background:#fff}.cumplHH .big{font-size:36px;color:#e23420;font-weight:900}.infoBar{margin:12px 0;background:#082f68;color:white;border-radius:10px;display:grid;grid-template-columns:1.4fr 1.2fr 1.4fr .6fr;padding:14px 18px;gap:12px}.infoBar small{display:block;opacity:.85}.infoBar b{font-size:16px}.filters{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;display:grid;grid-template-columns:250px 250px 250px 1fr 150px;gap:14px;align-items:end;box-shadow:var(--sombra);margin-bottom:12px}label{display:block;font-weight:900;font-size:12px;margin-bottom:8px;color:#07316c}input,select{width:100%;border:1px solid #ccd8e8;border-radius:6px;padding:10px;color:#07316c;font-weight:700;background:white}button.primary{background:#07316c;color:white;border:0;border-radius:7px;padding:12px 15px;font-weight:900;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{background:white;border:1px solid var(--borde);border-radius:12px;padding:14px;box-shadow:var(--sombra)}.kpi{display:flex;align-items:center;gap:14px;min-height:105px}.ico{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;background:#e7f2ff}.kpi h3{margin:0 0 8px;font-size:14px;color:#001d50}.kpi .val{font-size:28px;font-weight:900;color:#052c68}.kpi .sub{font-size:13px;color:#344766}.col2{grid-column:span 2}.col3{grid-column:span 3}.col4{grid-column:span 4}.col5{grid-column:span 5}.col6{grid-column:span 6}.col7{grid-column:span 7}.col12{grid-column:span 12}.chart{height:300px}.chart.sm{height:250px}h2.sec{font-size:18px;margin:0 0 14px}.view{display:none}.view.active{display:block}.loadPanel{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;margin:12px 0;box-shadow:var(--sombra)}.loadGrid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:14px;align-items:end}.pill{display:inline-block;border-radius:20px;padding:5px 10px;font-size:12px;font-weight:900}.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.warn{background:#fef3c7;color:#92400e}.gray{background:#e5e7eb;color:#374151}.tableWrap{max-height:430px;overflow:auto;border:1px solid var(--borde);border-radius:10px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:8px;border-bottom:1px solid #e7edf5;text-align:left}th{background:#eef5ff;color:#072f6b;position:sticky;top:0;z-index:1}.right{text-align:right}.hidden{display:none!important}.alert{padding:12px;border-radius:10px;background:#fff8e1;border:1px solid #f1d07a;color:#664500;margin:12px 0}.statusLine{margin-top:12px;padding:10px 12px;border-radius:10px;background:#eef6ff;border:1px solid #b9d7ff;color:#07316c;font-weight:800}.miniHelp{font-size:12px;color:#46607f;margin-top:6px}.positive{color:#16a34a!important;font-weight:900}.negative{color:#dc2626!important;font-weight:900}.progress{height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-top:8px}.bar{height:100%;background:#0a6ee8;width:0}@media(max-width:1100px){.side{position:relative;width:100%}.layout{display:block}.main{margin-left:0;width:100%}.top,.infoBar,.filters,.loadGrid{grid-template-columns:1fr}.col2,.col3,.col4,.col5,.col6,.col7{grid-column:span 12}}
+*{box-sizing:border-box}body{margin:0;background:var(--fondo);font-family:Arial,Helvetica,sans-serif;color:var(--texto);font-size:14px}.layout{display:flex;min-height:100vh}.side{width:190px;background:#072f6b;color:white;position:fixed;top:0;bottom:0;left:0;padding:14px 12px}.brandMini{font-weight:900;font-size:15px;margin-bottom:22px}.side button,.side a{display:block;width:100%;border:0;border-radius:8px;padding:14px 12px;margin:7px 0;text-align:left;background:transparent;color:white;font-weight:800;cursor:pointer;text-decoration:none}.side button.active{background:#0d58b7}.side button.load{background:#0a74f0;text-align:center}.main{margin-left:190px;width:calc(100% - 190px);padding:8px 18px 24px}.top{background:white;border:1px solid var(--borde);border-radius:12px;padding:16px 22px;display:grid;grid-template-columns:260px 1fr 180px;align-items:center;gap:15px;box-shadow:var(--sombra)}.logo{display:flex;align-items:center}.logo img{max-width:262px;width:100%;height:auto;display:block}.title{text-align:center}.title h1{margin:0;font-size:30px}.title h2{margin:8px 0 6px;font-size:24px;color:#0272ff}.periodo{font-weight:800}.cumplHH{text-align:center;border:1px solid var(--borde);border-radius:10px;padding:12px;background:#fff}.cumplHH .big{font-size:36px;color:#e23420;font-weight:900}.infoBar{margin:12px 0;background:#082f68;color:white;border-radius:10px;display:grid;grid-template-columns:1.4fr 1.2fr 1.4fr .6fr;padding:14px 18px;gap:12px}.infoBar small{display:block;opacity:.85}.infoBar b{font-size:16px}.filters{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;display:grid;grid-template-columns:250px 250px 250px 1fr 150px;gap:14px;align-items:end;box-shadow:var(--sombra);margin-bottom:12px}label{display:block;font-weight:900;font-size:12px;margin-bottom:8px;color:#07316c}input,select{width:100%;border:1px solid #ccd8e8;border-radius:6px;padding:10px;color:#07316c;font-weight:700;background:white}button.primary{background:#07316c;color:white;border:0;border-radius:7px;padding:12px 15px;font-weight:900;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{background:white;border:1px solid var(--borde);border-radius:12px;padding:14px;box-shadow:var(--sombra)}.kpi{display:flex;align-items:center;gap:14px;min-height:105px}.ico{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;background:#e7f2ff}.kpi h3{margin:0 0 8px;font-size:14px;color:#001d50}.kpi .val{font-size:28px;font-weight:900;color:#052c68}.kpi .sub{font-size:13px;color:#344766}.col2{grid-column:span 2}.col3{grid-column:span 3}.col4{grid-column:span 4}.col5{grid-column:span 5}.col6{grid-column:span 6}.col7{grid-column:span 7}.col12{grid-column:span 12}.chart{height:300px}.chart.sm{height:250px}h2.sec{font-size:18px;margin:0 0 14px}.view{display:none}.view.active{display:block}.loadPanel{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;margin:12px 0;box-shadow:var(--sombra)}.loadGrid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:14px;align-items:end}.pill{display:inline-block;border-radius:20px;padding:5px 10px;font-size:12px;font-weight:900}.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.warn{background:#fef3c7;color:#92400e}.gray{background:#e5e7eb;color:#374151}.tableWrap{max-height:430px;overflow:auto;border:1px solid var(--borde);border-radius:10px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:8px;border-bottom:1px solid #e7edf5;text-align:left}th{background:#eef5ff;color:#072f6b;position:sticky;top:0;z-index:1}.right{text-align:right}.hidden{display:none!important}.alert{padding:12px;border-radius:10px;background:#fff8e1;border:1px solid #f1d07a;color:#664500;margin:12px 0}.statusLine{margin-top:12px;padding:10px 12px;border-radius:10px;background:#eef6ff;border:1px solid #b9d7ff;color:#07316c;font-weight:800}.miniHelp{font-size:12px;color:#46607f;margin-top:6px}.positive{color:#16a34a!important;font-weight:900}.negative{color:#dc2626!important;font-weight:900}.progress{height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-top:8px}.bar{height:100%;background:#0a6ee8;width:0}.loadPanelTop{display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px}.pdfBtn{background:#0b3a78!important}.pdfBtn:disabled{opacity:.6;cursor:not-allowed}@media(max-width:1100px){.side{position:relative;width:100%}.layout{display:block}.main{margin-left:0;width:100%}.top,.infoBar,.filters,.loadGrid{grid-template-columns:1fr}.col2,.col3,.col4,.col5,.col6,.col7{grid-column:span 12}}
 </style>
 </head>
 <body>
@@ -24,7 +26,7 @@
       <div class="cumplHH"><b>CUMPLIMIENTO HH</b><div class="big" id="topCumpl">0,0%</div><span id="topMeta">Bajo la meta</span></div>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-06-2026 al 30-06-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.0</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-06-2026 al 30-06-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.2</b></div></section>
 
     <section class="filters">
       <div><label>META HH MENSUAL</label><input id="metaHH" type="number" value="350"></div>
@@ -35,6 +37,7 @@
     </section>
 
     <section class="loadPanel" id="estadoDatosPanel">
+      <div class="loadPanelTop"><button class="primary pdfBtn" id="btnPDF" onclick="descargarPDFEjecutivo()">📄 Descargar informe PDF</button></div>
       <div class="statusLine" id="estadoCarga">Cargando datos desde GitHub...</div>
       <div class="miniHelp">Fuente de datos: carpeta <b>datos/</b> en GitHub. El dashboard selecciona automáticamente el último archivo SAP y el último Plan Semanal cargado.</div>
     </section>
@@ -69,7 +72,7 @@
   </main>
 </div>
 <script>
-let sapRows=[],sap=[],planRows=[],plan=[],charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente";
+let sapRows=[],sap=[],planRows=[],plan=[],charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", lastStats={}, lastPlanCalc=[];
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`;
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
@@ -215,7 +218,7 @@ async function cargarDatosGithub(){
   }
 }
 function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=toNum($('metaHH').value),meses=mesesPeriodo(desde,hasta),meta=metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta));let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
- let hh=sapF.reduce((a,b)=>a+b.hh,0); let ot=unique(sapF.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title='Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
+ let hh=sapF.reduce((a,b)=>a+b.hh,0); let ot=unique(sapF.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; lastStats={desde,hasta,metaMensual,meta,meses,hh,ot,prom,pct,desv,periodo:showDate(desde)+' al '+showDate(hasta)}; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title='Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
  let dias={};sapF.forEach(x=>{let f=x.fecha||'Sin fecha'; if(!dias[f])dias[f]={hh:0,ots:new Set()};dias[f].hh+=x.hh;dias[f].ots.add(x.ot)});let labels=Object.keys(dias).sort();let metaDia=metaMensual/30;
  let periodoMes=periodoMesesLabel(desde,hasta);
  if($('tituloChartMes'))$('tituloChartMes').textContent='HH Real vs Meta HH - '+periodoMes;
@@ -223,8 +226,121 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  if($('tituloChartAcum'))$('tituloChartAcum').textContent='Cumplimiento acumulado del período - '+periodoMes;
  let mesesGraf={};sapF.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha'; if(!mesesGraf[k])mesesGraf[k]={hh:0};mesesGraf[k].hh+=x.hh});let labelsMes=Object.keys(mesesGraf).sort();destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsMes.map(showMes),datasets:[{label:'HH Real',data:labelsMes.map(f=>mesesGraf[f].hh),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:labelsMes.map(()=>metaMensual),borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
  let claseRaw=group(sapF,'clase','hh');let ordenClases=['ZM01','ZM02','ZM05'];let claseLabels=[],claseData=[],claseColors=[];ordenClases.concat(Object.keys(claseRaw).filter(k=>!ordenClases.includes(k))).forEach(k=>{if(claseRaw[k]){claseLabels.push(CLASS_INFO[k]?`${k} - ${CLASS_INFO[k]}`:k);claseData.push(claseRaw[k]);claseColors.push(k==='ZM01'?COLORS.sky:k==='ZM02'?COLORS.pink:k==='ZM05'?COLORS.orange:COLORS.gray)}});chart('chartTipo','pie',claseLabels,claseData,'HH',claseColors);let acumHH=[],acumMeta=[],a=0,m=0;labels.forEach(f=>{a+=dias[f].hh;m+=metaDia;acumHH.push(a);acumMeta.push(m)});destroy('chartAcum');charts.chartAcum=new Chart($('chartAcum'),{type:'line',data:{labels:labels.map(showDate),datasets:[{label:'HH Real acumulado',data:acumHH,borderColor:COLORS.blue,backgroundColor:COLORS.blue,tension:.25},{label:'Meta HH acumulada',data:acumMeta,borderColor:COLORS.green,backgroundColor:COLORS.green,tension:.25}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}});
- let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true}); let planCalc=plan.map(p=>({...p,estado:sapByOT[p.ot]?.not?'Notificada':'Pendiente'})); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
+ let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true}); let planCalc=plan.map(p=>({...p,estado:sapByOT[p.ot]?.not?'Notificada':'Pendiente'})); lastPlanCalc=planCalc; let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
  let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td>${p.aviso}</td><td><b>${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><span class="pill ${p.estado==='Notificada'?'ok':'bad'}">${p.estado}</span></td></tr>`));}
+
+function pdfAddHeader(doc,pageTitle){
+  const W=doc.internal.pageSize.getWidth();
+  const logo=document.querySelector('.logo img')?.src;
+  if(logo){try{doc.addImage(logo,'PNG',12,9,46,12)}catch(e){}}
+  doc.setTextColor(6,43,99);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(17);
+  doc.text('INFORME EJECUTIVO',W/2,14,{align:'center'});
+  doc.setFontSize(12);
+  doc.text('Dashboard HH Mantención SAP - Piscicultura Lago Verde',W/2,21,{align:'center'});
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.text(pageTitle,W/2,27,{align:'center'});
+  doc.setDrawColor(6,43,99);
+  doc.setLineWidth(.6);
+  doc.line(10,31,W-10,31);
+}
+function pdfFooter(doc,page,total){
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  doc.setFontSize(8);doc.setTextColor(90,105,130);
+  doc.text('Dashboard HH Mantención SAP – Piscicultura Lago Verde',10,H-7);
+  doc.text('Página '+page+' de '+total,W-10,H-7,{align:'right'});
+}
+function pdfCard(doc,x,y,w,h,title,value,sub,color){
+  doc.setDrawColor(218,227,240);doc.setFillColor(255,255,255);doc.roundedRect(x,y,w,h,3,3,'FD');
+  doc.setTextColor(6,43,99);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(title,x+4,y+6);
+  doc.setTextColor(color||6,43,99);doc.setFontSize(15);doc.text(String(value),x+4,y+15);
+  doc.setTextColor(60,75,100);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(String(sub||''),x+4,y+22);
+}
+function chartImage(id){try{return charts[id]?.toBase64Image('image/png',1)}catch(e){return null}}
+async function descargarPDFEjecutivo(){
+  if(!sap.length){alert('Aún no hay datos SAP cargados.');return}
+  const btn=$('btnPDF'); if(btn)btn.disabled=true;
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const W=doc.internal.pageSize.getWidth();
+    const st=lastStats||{};
+    const totalPlan=lastPlanCalc.length;
+    const notif=lastPlanCalc.filter(x=>x.estado==='Notificada').length;
+    const pend=totalPlan-notif;
+    const pp=totalPlan?Math.round(notif/totalPlan*100):0;
+    const emitido=new Date().toLocaleString('es-CL');
+
+    // Página 1
+    pdfAddHeader(doc,'Resumen Ejecutivo HH');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(6,43,99);
+    doc.text('Período analizado: '+(st.periodo||$('periodoTxt').textContent),12,38);
+    doc.text('Fecha de emisión: '+emitido,150,38);
+    doc.text('Fuente SAP: '+sapArchivo,12,43);
+    const kY=48, kW=44, kH=24, gap=4;
+    pdfCard(doc,12,kY,kW,kH,'HH Reales',fmt(st.hh),'HH',6);
+    pdfCard(doc,12+(kW+gap)*1,kY,kW,kH,'Meta HH',fmt(st.meta),'HH',6);
+    pdfCard(doc,12+(kW+gap)*2,kY,kW,kH,'Desviación',fmt(st.desv), (st.meta?fmt(st.desv/st.meta*100):'0,0')+'%', st.desv>=0?22:220);
+    pdfCard(doc,12+(kW+gap)*3,kY,kW,kH,'Cumplimiento',fmt(st.pct)+'%','Meta HH', st.pct>=100?22:220);
+    pdfCard(doc,12+(kW+gap)*4,kY,kW,kH,'Órdenes ejecutadas',st.ot||0,'Órdenes únicas',6);
+    pdfCard(doc,12+(kW+gap)*5,kY,kW,kH,'Promedio HH / Orden',fmt(st.prom),'HH por orden',6);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(40,55,75);
+    const resumen=`Durante el período analizado se registraron ${fmt(st.hh)} HH, alcanzando un cumplimiento de ${fmt(st.pct)}% respecto de la meta mensual de ${fmt(st.meta)} HH. En total se ejecutaron ${st.ot||0} órdenes de mantenimiento, con un promedio de ${fmt(st.prom)} HH por orden.`;
+    doc.text(doc.splitTextToSize(resumen,W-24),12,82);
+    const img1=chartImage('chartDiario'), img2=chartImage('chartTipo'), img3=chartImage('chartAcum');
+    if(img1)doc.addImage(img1,'PNG',12,96,132,58);
+    if(img2)doc.addImage(img2,'PNG',153,96,60,58);
+    if(img3)doc.addImage(img3,'PNG',218,96,67,58);
+    doc.setFont('helvetica','bold');doc.setTextColor(6,43,99);doc.setFontSize(8);
+    doc.text('HH Real vs Meta',12,92);doc.text('Órdenes por tipo',153,92);doc.text('Cumplimiento acumulado',218,92);
+    doc.setFont('helvetica','normal');doc.setTextColor(40,55,75);doc.setFontSize(8);
+    const concl = st.pct>=100 ? 'Conclusión: El cumplimiento de HH se encuentra sobre la meta definida para el período.' : 'Conclusión: El cumplimiento de HH se encuentra bajo la meta definida para el período.';
+    doc.text(concl,12,168);
+    pdfFooter(doc,1,2);
+
+    // Página 2
+    doc.addPage();
+    pdfAddHeader(doc,'Cumplimiento Plan Semanal');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(6,43,99);
+    doc.text('Plan semanal: '+planArchivo,12,38);
+    doc.text('Última lectura: '+ultimaCarga,150,38);
+    pdfCard(doc,12,45,64,24,'OT Planificadas',totalPlan,'Según plan semanal',6);
+    pdfCard(doc,82,45,64,24,'OT Notificadas',notif,'Encontradas en SAP',22);
+    pdfCard(doc,152,45,64,24,'OT Pendientes',pend,'Aún sin notificación',220);
+    pdfCard(doc,222,45,62,24,'Cumplimiento plan',pp+'%','Plan semanal',pp>=80?22:(pp>=50?245:220));
+    const p1=chartImage('chartPlan'), p2=chartImage('chartEnc');
+    doc.setFont('helvetica','bold');doc.setTextColor(6,43,99);doc.setFontSize(8);
+    doc.text('Cumplimiento Plan Semanal',12,78);doc.text('Cumplimiento por encargado',112,78);
+    if(p1)doc.addImage(p1,'PNG',12,82,84,54);
+    if(p2)doc.addImage(p2,'PNG',112,82,170,54);
+    const rows=lastPlanCalc.map(p=>[showDate(p.fecha),String(p.aviso||''),String(p.ot||''),String(p.trabajo||''),String(p.encargado||''),String(p.turno||''),p.estado]);
+    doc.autoTable({
+      startY:142,
+      head:[['Fecha','Aviso','Orden','Trabajo','Encargado','Turno','Estado']],
+      body:rows,
+      margin:{left:12,right:12},
+      styles:{fontSize:6,cellPadding:1.4,textColor:[6,43,99],overflow:'linebreak',lineColor:[231,237,245],lineWidth:.1},
+      headStyles:{fillColor:[238,245,255],textColor:[6,43,99],fontStyle:'bold'},
+      columnStyles:{0:{cellWidth:18},1:{cellWidth:22},2:{cellWidth:24,fontStyle:'bold'},3:{cellWidth:100},4:{cellWidth:34},5:{cellWidth:24},6:{cellWidth:22,fontStyle:'bold'}},
+      didParseCell:function(data){
+        if(data.section==='body' && data.column.index===6){
+          if(String(data.cell.raw).includes('Notificada')){data.cell.styles.textColor=[22,101,52];data.cell.styles.fillColor=[220,252,231];}
+          else{data.cell.styles.textColor=[153,27,27];data.cell.styles.fillColor=[254,226,226];}
+        }
+      }
+    });
+    doc.setFont('helvetica','normal');doc.setTextColor(40,55,75);doc.setFontSize(8);
+    const y=Math.min(198,(doc.lastAutoTable?.finalY||180)+6);
+    const planResumen=`Durante la semana se programaron ${totalPlan} órdenes de trabajo, de las cuales ${notif} fueron notificadas, alcanzando un ${pp}% de cumplimiento. Permanecen ${pend} órdenes pendientes.`;
+    doc.text(doc.splitTextToSize(planResumen,W-24),12,y);
+    pdfFooter(doc,2,2);
+    doc.save('Informe_Ejecutivo_HH_Mantencion_SAP.pdf');
+  }catch(e){console.error(e);alert('No se pudo generar el PDF: '+e.message)}
+  finally{if(btn)btn.disabled=false;}
+}
+
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 cargarDatosGithub();
