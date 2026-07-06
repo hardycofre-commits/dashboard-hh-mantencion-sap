@@ -3,12 +3,162 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.1 - Piscicultura Lago Verde</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<title>Dashboard HH Mantención SAP v3.4 - Piscicultura Lago Verde</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+function safeText(id){const el=$(id); return el?el.innerText.trim():''}
+function canvasImg(id, cls='pdfChart'){
+  const c=$(id);
+  if(!c) return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>';
+  try{return `<img class="${cls}" src="${c.toDataURL('image/png',1.0)}">`}catch(e){return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>'}
+}
+function buildPdfTablePlan(){
+  const rows=[...document.querySelectorAll('#tablaPlan tbody tr')];
+  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody>';
+  rows.forEach(tr=>{
+    const t=[...tr.children].map(td=>td.innerText.trim());
+    const estado=(t[6]||'').toLowerCase();
+    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[6]}</span>`:`<span class="pdfBadgeBad">${t[6]||'Pendiente'}</span>`;
+    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td><td>${badge}</td></tr>`;
+  });
+  html+='</tbody></table>'; return html;
+}
+function generarInformePDF(){
+  const now=new Date().toLocaleString('es-CL');
+  const logo=document.querySelector('.logo img')?.src||'';
+  const periodo=safeText('periodoTxt');
+  const hh=safeText('hhReal'), meta=safeText('hhMeta'), desv=safeText('desvHH'), cumpl=safeText('cumplHH'), ots=safeText('otEjecutadas'), prom=safeText('promHH');
+  const pt=safeText('planTotal'), pn=safeText('planNotif'), pp=safeText('planPend'), pc=safeText('planPct');
+  const comentario1=`Durante el período analizado se registraron ${hh} HH frente a una meta de ${meta} HH, alcanzando un cumplimiento de ${cumpl}. Se ejecutaron ${ots} órdenes de mantenimiento, con un promedio de ${prom} HH por orden.`;
+  const comentario2=`Durante la semana se programaron ${pt} órdenes de trabajo, de las cuales ${pn} fueron notificadas. Permanecen ${pp} OT pendientes, alcanzando un cumplimiento del Plan Semanal de ${pc}.`;
+  const rep=$('printReport');
+  rep.innerHTML=`
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Piscicultura Lago Verde</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfKpis">
+      <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>HH / Orden</b><span>${prom}</span></div>
+    </div>
+    <div class="pdfBox"><h3>Resumen ejecutivo</h3><div class="pdfComment">${comentario1}</div></div>
+    <div class="pdfGrid2">
+      <div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall')}</div>
+      <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartTall')}</div>
+    </div>
+    <div class="pdfBox"><h3>Cumplimiento acumulado del período</h3>${canvasImg('chartAcum','pdfChart')}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 2</span></div>
+  </section>
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>CUMPLIMIENTO PLAN SEMANAL</h1><h2>Detalle de órdenes programadas</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfPlanKpis">
+      <div class="pdfKpi"><b>OT Planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>OT Notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>OT Pendientes</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento plan</b><span>${pc}</span></div>
+    </div>
+    <div class="pdfGrid2">
+      <div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart')}</div>
+      <div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart')}</div>
+    </div>
+    <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>
+    <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 2</span></div>
+  </section>`;
+  setTimeout(()=>window.print(),250);
+}
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+function safeText(id){const el=$(id); return el?el.innerText.trim():''}
+function canvasImg(id, cls='pdfChart'){
+  const c=$(id);
+  if(!c) return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>';
+  try{return `<img class="${cls}" src="${c.toDataURL('image/png',1.0)}">`}catch(e){return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>'}
+}
+function buildPdfTablePlan(){
+  const rows=[...document.querySelectorAll('#tablaPlan tbody tr')];
+  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody>';
+  rows.forEach(tr=>{
+    const t=[...tr.children].map(td=>td.innerText.trim());
+    const estado=(t[6]||'').toLowerCase();
+    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[6]}</span>`:`<span class="pdfBadgeBad">${t[6]||'Pendiente'}</span>`;
+    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td><td>${badge}</td></tr>`;
+  });
+  html+='</tbody></table>'; return html;
+}
+function generarInformePDF(){
+  const now=new Date().toLocaleString('es-CL');
+  const logo=document.querySelector('.logo img')?.src||'';
+  const periodo=safeText('periodoTxt');
+  const hh=safeText('hhReal'), meta=safeText('hhMeta'), desv=safeText('desvHH'), cumpl=safeText('cumplHH'), ots=safeText('otEjecutadas'), prom=safeText('promHH');
+  const pt=safeText('planTotal'), pn=safeText('planNotif'), pp=safeText('planPend'), pc=safeText('planPct');
+  const comentario1=`Durante el período analizado se registraron ${hh} HH frente a una meta de ${meta} HH, alcanzando un cumplimiento de ${cumpl}. Se ejecutaron ${ots} órdenes de mantenimiento, con un promedio de ${prom} HH por orden.`;
+  const comentario2=`Durante la semana se programaron ${pt} órdenes de trabajo, de las cuales ${pn} fueron notificadas. Permanecen ${pp} OT pendientes, alcanzando un cumplimiento del Plan Semanal de ${pc}.`;
+  const rep=$('printReport');
+  rep.innerHTML=`
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Piscicultura Lago Verde</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfKpis">
+      <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>HH / Orden</b><span>${prom}</span></div>
+    </div>
+    <div class="pdfBox"><h3>Resumen ejecutivo</h3><div class="pdfComment">${comentario1}</div></div>
+    <div class="pdfGrid2">
+      <div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall')}</div>
+      <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartTall')}</div>
+    </div>
+    <div class="pdfBox"><h3>Cumplimiento acumulado del período</h3>${canvasImg('chartAcum','pdfChart')}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 2</span></div>
+  </section>
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>CUMPLIMIENTO PLAN SEMANAL</h1><h2>Detalle de órdenes programadas</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfPlanKpis">
+      <div class="pdfKpi"><b>OT Planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>OT Notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>OT Pendientes</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento plan</b><span>${pc}</span></div>
+    </div>
+    <div class="pdfGrid2">
+      <div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart')}</div>
+      <div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart')}</div>
+    </div>
+    <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>
+    <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 2</span></div>
+  </section>`;
+  setTimeout(()=>window.print(),250);
+}
+
+</script>
 <style>
 :root{--azul:#062b63;--azul2:#0a6ee8;--fondo:#f4f7fb;--borde:#d9e3f0;--texto:#062b63;--verde:#16a34a;--rojo:#dc2626;--amarillo:#f59e0b;--morado:#6d45c9;--celeste:#dff0ff;--sombra:0 4px 16px rgba(2,27,70,.08)}
-*{box-sizing:border-box}body{margin:0;background:var(--fondo);font-family:Arial,Helvetica,sans-serif;color:var(--texto);font-size:14px}.layout{display:flex;min-height:100vh}.side{width:190px;background:#072f6b;color:white;position:fixed;top:0;bottom:0;left:0;padding:14px 12px}.brandMini{font-weight:900;font-size:15px;margin-bottom:22px}.side button,.side a{display:block;width:100%;border:0;border-radius:8px;padding:14px 12px;margin:7px 0;text-align:left;background:transparent;color:white;font-weight:800;cursor:pointer;text-decoration:none}.side button.active{background:#0d58b7}.side button.load{background:#0a74f0;text-align:center}.main{margin-left:190px;width:calc(100% - 190px);padding:8px 18px 24px}.top{background:white;border:1px solid var(--borde);border-radius:12px;padding:16px 22px;display:grid;grid-template-columns:260px 1fr 180px;align-items:center;gap:15px;box-shadow:var(--sombra)}.logo{display:flex;align-items:center}.logo img{max-width:262px;width:100%;height:auto;display:block}.title{text-align:center}.title h1{margin:0;font-size:30px}.title h2{margin:8px 0 6px;font-size:24px;color:#0272ff}.periodo{font-weight:800}.cumplHH{text-align:center;border:1px solid var(--borde);border-radius:10px;padding:12px;background:#fff}.cumplHH .big{font-size:36px;color:#e23420;font-weight:900}.infoBar{margin:12px 0;background:#082f68;color:white;border-radius:10px;display:grid;grid-template-columns:1.4fr 1.2fr 1.4fr .6fr;padding:14px 18px;gap:12px}.infoBar small{display:block;opacity:.85}.infoBar b{font-size:16px}.filters{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;display:grid;grid-template-columns:250px 250px 250px 1fr 150px;gap:14px;align-items:end;box-shadow:var(--sombra);margin-bottom:12px}label{display:block;font-weight:900;font-size:12px;margin-bottom:8px;color:#07316c}input,select{width:100%;border:1px solid #ccd8e8;border-radius:6px;padding:10px;color:#07316c;font-weight:700;background:white}button.primary{background:#07316c;color:white;border:0;border-radius:7px;padding:12px 15px;font-weight:900;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{background:white;border:1px solid var(--borde);border-radius:12px;padding:14px;box-shadow:var(--sombra)}.kpi{display:flex;align-items:center;gap:14px;min-height:105px}.ico{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;background:#e7f2ff}.kpi h3{margin:0 0 8px;font-size:14px;color:#001d50}.kpi .val{font-size:28px;font-weight:900;color:#052c68}.kpi .sub{font-size:13px;color:#344766}.col2{grid-column:span 2}.col3{grid-column:span 3}.col4{grid-column:span 4}.col5{grid-column:span 5}.col6{grid-column:span 6}.col7{grid-column:span 7}.col12{grid-column:span 12}.chart{height:300px}.chart.sm{height:250px}h2.sec{font-size:18px;margin:0 0 14px}.view{display:none}.view.active{display:block}.loadPanel{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;margin:12px 0;box-shadow:var(--sombra)}.loadGrid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:14px;align-items:end}.pill{display:inline-block;border-radius:20px;padding:5px 10px;font-size:12px;font-weight:900}.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.warn{background:#fef3c7;color:#92400e}.gray{background:#e5e7eb;color:#374151}.tableWrap{max-height:430px;overflow:auto;border:1px solid var(--borde);border-radius:10px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:8px;border-bottom:1px solid #e7edf5;text-align:left}th{background:#eef5ff;color:#072f6b;position:sticky;top:0;z-index:1}.right{text-align:right}.hidden{display:none!important}.alert{padding:12px;border-radius:10px;background:#fff8e1;border:1px solid #f1d07a;color:#664500;margin:12px 0}.statusLine{margin-top:12px;padding:10px 12px;border-radius:10px;background:#eef6ff;border:1px solid #b9d7ff;color:#07316c;font-weight:800}.miniHelp{font-size:12px;color:#46607f;margin-top:6px}.positive{color:#16a34a!important;font-weight:900}.negative{color:#dc2626!important;font-weight:900}.progress{height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-top:8px}.bar{height:100%;background:#0a6ee8;width:0}@media(max-width:1100px){.side{position:relative;width:100%}.layout{display:block}.main{margin-left:0;width:100%}.top,.infoBar,.filters,.loadGrid{grid-template-columns:1fr}.col2,.col3,.col4,.col5,.col6,.col7{grid-column:span 12}}
+*{box-sizing:border-box}body{margin:0;background:var(--fondo);font-family:Arial,Helvetica,sans-serif;color:var(--texto);font-size:14px}.layout{display:flex;min-height:100vh}.side{width:190px;background:#072f6b;color:white;position:fixed;top:0;bottom:0;left:0;padding:14px 12px}.brandMini{font-weight:900;font-size:15px;margin-bottom:22px}.side button,.side a{display:block;width:100%;border:0;border-radius:8px;padding:14px 12px;margin:7px 0;text-align:left;background:transparent;color:white;font-weight:800;cursor:pointer;text-decoration:none}.side button.active{background:#0d58b7}.side button.load{background:#0a74f0;text-align:center}.main{margin-left:190px;width:calc(100% - 190px);padding:8px 18px 24px}.top{background:white;border:1px solid var(--borde);border-radius:12px;padding:16px 22px;display:grid;grid-template-columns:260px 1fr 180px;align-items:center;gap:15px;box-shadow:var(--sombra)}.logo{display:flex;align-items:center}.logo img{max-width:262px;width:100%;height:auto;display:block}.title{text-align:center}.title h1{margin:0;font-size:30px}.title h2{margin:8px 0 6px;font-size:24px;color:#0272ff}.periodo{font-weight:800}.cumplHH{text-align:center;border:1px solid var(--borde);border-radius:10px;padding:12px;background:#fff}.cumplHH .big{font-size:36px;color:#e23420;font-weight:900}.infoBar{margin:12px 0;background:#082f68;color:white;border-radius:10px;display:grid;grid-template-columns:1.4fr 1.2fr 1.4fr .6fr;padding:14px 18px;gap:12px}.infoBar small{display:block;opacity:.85}.infoBar b{font-size:16px}.filters{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;display:grid;grid-template-columns:250px 250px 250px 1fr auto;gap:14px;align-items:end;box-shadow:var(--sombra);margin-bottom:12px}label{display:block;font-weight:900;font-size:12px;margin-bottom:8px;color:#07316c}input,select{width:100%;border:1px solid #ccd8e8;border-radius:6px;padding:10px;color:#07316c;font-weight:700;background:white}button.primary{background:#07316c;color:white;border:0;border-radius:7px;padding:12px 15px;font-weight:900;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{background:white;border:1px solid var(--borde);border-radius:12px;padding:14px;box-shadow:var(--sombra)}.kpi{display:flex;align-items:center;gap:14px;min-height:105px}.ico{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;background:#e7f2ff}.kpi h3{margin:0 0 8px;font-size:14px;color:#001d50}.kpi .val{font-size:28px;font-weight:900;color:#052c68}.kpi .sub{font-size:13px;color:#344766}.col2{grid-column:span 2}.col3{grid-column:span 3}.col4{grid-column:span 4}.col5{grid-column:span 5}.col6{grid-column:span 6}.col7{grid-column:span 7}.col12{grid-column:span 12}.chart{height:300px}.chart.sm{height:250px}h2.sec{font-size:18px;margin:0 0 14px}.view{display:none}.view.active{display:block}.loadPanel{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:15px;margin:12px 0;box-shadow:var(--sombra)}.loadGrid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:14px;align-items:end}.pill{display:inline-block;border-radius:20px;padding:5px 10px;font-size:12px;font-weight:900}.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.warn{background:#fef3c7;color:#92400e}.gray{background:#e5e7eb;color:#374151}.tableWrap{max-height:430px;overflow:auto;border:1px solid var(--borde);border-radius:10px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:8px;border-bottom:1px solid #e7edf5;text-align:left}th{background:#eef5ff;color:#072f6b;position:sticky;top:0;z-index:1}.right{text-align:right}.hidden{display:none!important}.alert{padding:12px;border-radius:10px;background:#fff8e1;border:1px solid #f1d07a;color:#664500;margin:12px 0}.statusLine{margin-top:12px;padding:10px 12px;border-radius:10px;background:#eef6ff;border:1px solid #b9d7ff;color:#07316c;font-weight:800}.miniHelp{font-size:12px;color:#46607f;margin-top:6px}.positive{color:#16a34a!important;font-weight:900}.negative{color:#dc2626!important;font-weight:900}.progress{height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-top:8px}.bar{height:100%;background:#0a6ee8;width:0}
+/* Informe PDF ejecutivo vía impresión del navegador */
+.pdf-actions{display:flex;gap:10px;align-items:end}
+button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:12px 15px;font-weight:900;cursor:pointer}
+#printReport{display:none}
+@media print{
+  body{background:white!important;color:#062b63!important;font-family:Arial,Helvetica,sans-serif!important}
+  .layout{display:none!important}
+  #printReport{display:block!important}
+  .pdfPage{width:100%;min-height:185mm;padding:10mm 11mm;page-break-after:always;box-sizing:border-box}
+  .pdfPage:last-child{page-break-after:auto}
+  .pdfHead{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #062b63;padding-bottom:7px;margin-bottom:9px}
+  .pdfLogo{height:35px;max-width:160px;object-fit:contain}
+  .pdfTitle{text-align:center;flex:1;color:#062b63}
+  .pdfTitle h1{margin:0;font-size:18px}
+  .pdfTitle h2{margin:2px 0 0;font-size:14px;color:#0a6ee8}
+  .pdfMeta{text-align:right;font-size:9px;line-height:1.35}
+  .pdfKpis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0}
+  .pdfKpi{border:1px solid #d9e3f0;border-radius:7px;padding:6px;background:#f7fbff}
+  .pdfKpi b{display:block;font-size:8.5px;color:#062b63}
+  .pdfKpi span{display:block;font-size:16px;font-weight:900;margin-top:2px;color:#062b63}
+  .pdfBox{border:1px solid #d9e3f0;border-radius:8px;padding:7px;margin-top:8px;background:white}
+  .pdfBox h3{margin:0 0 6px;font-size:12px;color:#062b63}
+  .pdfGrid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pdfChart{width:100%;height:135px;object-fit:contain}
+  .pdfChartTall{width:100%;height:150px;object-fit:contain}
+  .pdfComment{font-size:10px;line-height:1.45;background:#eef6ff;border-left:4px solid #0a6ee8;padding:7px;margin-top:7px}
+  .pdfPlanKpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:8px 0}
+  .pdfPlanTable{width:100%;border-collapse:collapse;font-size:7.2px;margin-top:6px}
+  .pdfPlanTable th{background:#062b63;color:white;padding:4px;border:1px solid #d9e3f0;text-align:left}
+  .pdfPlanTable td{padding:3px;border:1px solid #d9e3f0;vertical-align:top;color:#062b63}
+  .pdfBadgeOk{background:#dcfce7;color:#166534;border-radius:10px;padding:2px 5px;font-weight:800}
+  .pdfBadgeBad{background:#fee2e2;color:#991b1b;border-radius:10px;padding:2px 5px;font-weight:800}
+  .pdfFooter{position:absolute;bottom:6mm;left:11mm;right:11mm;border-top:1px solid #d9e3f0;padding-top:4px;font-size:8px;color:#475569;display:flex;justify-content:space-between}
+}
+
+@media(max-width:1100px){.side{position:relative;width:100%}.layout{display:block}.main{margin-left:0;width:100%}.top,.infoBar,.filters,.loadGrid{grid-template-columns:1fr}.col2,.col3,.col4,.col5,.col6,.col7{grid-column:span 12}}
 </style>
 </head>
 <body>
@@ -24,14 +174,17 @@
       <div class="cumplHH"><b>CUMPLIMIENTO HH</b><div class="big" id="topCumpl">0,0%</div><span id="topMeta">Bajo la meta</span></div>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-06-2026 al 30-06-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.0</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-06-2026 al 30-06-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.4</b></div></section>
 
     <section class="filters">
       <div><label>META HH MENSUAL</label><input id="metaHH" type="number" value="350"></div>
       <div><label>FECHA DESDE</label><input id="desde" type="date" value="2026-06-01"></div>
       <div><label>FECHA HASTA</label><input id="hasta" type="date" value="2026-06-30"></div>
       <div><label>CLASE DE ORDEN</label><select id="claseFiltro"><option>Todas</option></select></div>
-      <button class="primary" onclick="cargarDatosGithub()">↻ ACTUALIZAR</button>
+      <div class="pdf-actions">
+        <button class="primary" onclick="cargarDatosGithub()">↻ ACTUALIZAR</button>
+        <button class="pdfbtn" onclick="generarInformePDF()">📄 Informe PDF</button>
+      </div>
     </section>
 
     <section class="loadPanel" id="estadoDatosPanel">
@@ -77,12 +230,16 @@ const $=id=>document.getElementById(id); const fmt=n=>Number(n||0).toLocaleStrin
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findCol(row,keys){const cols=Object.keys(row||{});return cols.find(c=>keys.some(k=>norm(c).includes(k)))||null}
 function toNum(v){
-  let raw=String(v??'').trim();
-  // En SAP, una anulación puede venir como 16,000-; debe leerse como -16,000.
-  const negativoAlFinal=/-$/.test(raw);
-  let s=raw.replace(/-/g,'').replace(/\./g,'').replace(',','.').replace(/[^0-9.]/g,'');
+  // SAP puede mostrar anulaciones con signo al final (16,000-) o entregar el valor como número negativo.
+  // En ambos casos debe descontar HH: 16,000- = -16,000 y -16 = -16.
+  if(v===null || v===undefined || v==='') return 0;
+  if(typeof v==='number') return Number.isFinite(v)?v:0;
+  let raw=String(v).trim();
+  let negativo=/^\s*-/.test(raw) || /-\s*$/.test(raw) || /^\s*\(.*\)\s*$/.test(raw);
+  let limpio=raw.replace(/[()]/g,'').replace(/^\s*-|\-\s*$/g,'').trim();
+  let s=limpio.replace(/\./g,'').replace(',','.').replace(/[^0-9.]/g,'');
   let n=parseFloat(s)||0;
-  return negativoAlFinal?-n:n;
+  return negativo ? -Math.abs(n) : n;
 }
 function excelDate(v){if(v instanceof Date)return v.toISOString().slice(0,10); if(typeof v==='number'&&v>30000){let d=XLSX.SSF.parse_date_code(v);return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`} let s=String(v||'').trim(); let m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/); if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; return s}
 function showDate(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}-${m[2]}-${m[1]}`:s}
@@ -235,6 +392,64 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 cargarDatosGithub();
+
+function safeText(id){const el=$(id); return el?el.innerText.trim():''}
+function canvasImg(id, cls='pdfChart'){
+  const c=$(id);
+  if(!c) return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>';
+  try{return `<img class="${cls}" src="${c.toDataURL('image/png',1.0)}">`}catch(e){return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>'}
+}
+function buildPdfTablePlan(){
+  const rows=[...document.querySelectorAll('#tablaPlan tbody tr')];
+  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody>';
+  rows.forEach(tr=>{
+    const t=[...tr.children].map(td=>td.innerText.trim());
+    const estado=(t[6]||'').toLowerCase();
+    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[6]}</span>`:`<span class="pdfBadgeBad">${t[6]||'Pendiente'}</span>`;
+    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td><td>${badge}</td></tr>`;
+  });
+  html+='</tbody></table>'; return html;
+}
+function generarInformePDF(){
+  const now=new Date().toLocaleString('es-CL');
+  const logo=document.querySelector('.logo img')?.src||'';
+  const periodo=safeText('periodoTxt');
+  const hh=safeText('hhReal'), meta=safeText('hhMeta'), desv=safeText('desvHH'), cumpl=safeText('cumplHH'), ots=safeText('otEjecutadas'), prom=safeText('promHH');
+  const pt=safeText('planTotal'), pn=safeText('planNotif'), pp=safeText('planPend'), pc=safeText('planPct');
+  const comentario1=`Durante el período analizado se registraron ${hh} HH frente a una meta de ${meta} HH, alcanzando un cumplimiento de ${cumpl}. Se ejecutaron ${ots} órdenes de mantenimiento, con un promedio de ${prom} HH por orden.`;
+  const comentario2=`Durante la semana se programaron ${pt} órdenes de trabajo, de las cuales ${pn} fueron notificadas. Permanecen ${pp} OT pendientes, alcanzando un cumplimiento del Plan Semanal de ${pc}.`;
+  const rep=$('printReport');
+  rep.innerHTML=`
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Piscicultura Lago Verde</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfKpis">
+      <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>HH / Orden</b><span>${prom}</span></div>
+    </div>
+    <div class="pdfBox"><h3>Resumen ejecutivo</h3><div class="pdfComment">${comentario1}</div></div>
+    <div class="pdfGrid2">
+      <div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall')}</div>
+      <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartTall')}</div>
+    </div>
+    <div class="pdfBox"><h3>Cumplimiento acumulado del período</h3>${canvasImg('chartAcum','pdfChart')}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 2</span></div>
+  </section>
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>CUMPLIMIENTO PLAN SEMANAL</h1><h2>Detalle de órdenes programadas</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfPlanKpis">
+      <div class="pdfKpi"><b>OT Planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>OT Notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>OT Pendientes</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento plan</b><span>${pc}</span></div>
+    </div>
+    <div class="pdfGrid2">
+      <div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart')}</div>
+      <div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart')}</div>
+    </div>
+    <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>
+    <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 2</span></div>
+  </section>`;
+  setTimeout(()=>window.print(),250);
+}
+
 </script>
+<div id="printReport"></div>
 </body>
 </html>
