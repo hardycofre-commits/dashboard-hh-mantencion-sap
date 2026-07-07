@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.6 - Piscicultura Lago Verde</title>
+<title>Dashboard HH Mantención SAP v3.7 - Piscicultura Lago Verde</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -61,7 +61,7 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
       <div class="cumplHH"><b>CUMPLIMIENTO HH</b><div class="big" id="topCumpl">0,0%</div><span id="topMeta">Bajo la meta</span></div>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-07-2026 al 31-07-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.6</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-07-2026 al 31-07-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.7</b></div></section>
 
     <section class="filters">
       <div><label>META HH MENSUAL</label><input id="metaHH" type="number" value="350"></div>
@@ -73,7 +73,7 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 
     <section class="loadPanel" id="estadoDatosPanel">
       <div class="statusLine" id="estadoCarga">Cargando datos desde GitHub...</div>
-      <div class="miniHelp">Fuente de datos: carpeta <b>datos/</b> en GitHub. El dashboard selecciona automáticamente el último archivo SAP y el último Plan Semanal cargado.</div>
+      <div class="miniHelp">Fuente de datos: carpeta <b>datos/</b> en GitHub. El dashboard selecciona automáticamente el último archivo SAP y permite elegir el Plan Semanal cargado a revisar.</div>
     </section>
 
     <section id="resumen" class="view active">
@@ -93,6 +93,15 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 
     <section id="plan" class="view">
       <div class="grid">
+        <div class="card col12">
+          <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:end">
+            <div>
+              <label>PLAN SEMANAL A VISUALIZAR</label>
+              <select id="planSelector" onchange="cambiarPlanSemanal()"><option value="">Cargando planes...</option></select>
+            </div>
+            <div class="miniHelp">Por defecto se carga el último plan semanal disponible en GitHub. Puedes seleccionar una semana anterior para revisar su cumplimiento sin borrar archivos.</div>
+          </div>
+        </div>
         <div class="card kpi col3"><div class="ico">📋</div><div><h3>OT Planificadas</h3><div class="val" id="planTotal">0</div><div class="sub">Según plan semanal</div></div></div>
         <div class="card kpi col3"><div class="ico">✅</div><div><h3>OT Notificadas</h3><div class="val" id="planNotif">0</div><div class="sub">Encontradas en SAP</div></div></div>
         <div class="card kpi col3"><div class="ico">⏳</div><div><h3>OT Pendientes</h3><div class="val" id="planPend">0</div><div class="sub">Aún sin notificación</div></div></div>
@@ -107,7 +116,7 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 </div>
 <div id="printReport"></div>
 <script>
-let sapRows=[],sap=[],planRows=[],plan=[],charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente";
+let sapRows=[],sap=[],planRows=[],plan=[],charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`;
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
@@ -208,20 +217,55 @@ function scoreSemanaNombre(nombre){
   let fecha=scoreFechaNombre(nombre);
   return fecha || semana;
 }
-function elegirArchivo(files,tipo){
+function obtenerCandidatos(files,tipo){
   let candidatos=files.filter(f=>{
     const n=f.name.toLowerCase();
     if(tipo==='sap') return (n.includes('export') || n.includes('sap')) && !n.includes('semana') && !n.includes('plan');
     return n.includes('semana') || n.includes('plan');
   });
-  if(!candidatos.length)throw new Error('No se encontró archivo '+(tipo==='sap'?'SAP/EXPORT':'Plan Semanal')+' en la carpeta datos.');
   candidatos.sort((a,b)=>{
     const sa=tipo==='sap'?scoreFechaNombre(a.name):scoreSemanaNombre(a.name);
     const sb=tipo==='sap'?scoreFechaNombre(b.name):scoreSemanaNombre(b.name);
     if(sb!==sa)return sb-sa;
     return b.name.localeCompare(a.name,'es',{numeric:true});
   });
+  return candidatos;
+}
+function elegirArchivo(files,tipo){
+  const candidatos=obtenerCandidatos(files,tipo);
+  if(!candidatos.length)throw new Error('No se encontró archivo '+(tipo==='sap'?'SAP/EXPORT':'Plan Semanal')+' en la carpeta datos.');
   return candidatos[0];
+}
+function llenarSelectorPlanes(files, seleccionado){
+  const sel=$('planSelector');
+  if(!sel)return;
+  const planes=obtenerCandidatos(files,'plan');
+  sel.innerHTML='';
+  if(!planes.length){sel.innerHTML='<option value="">Sin planes disponibles</option>';return;}
+  planes.forEach((f,i)=>{
+    const opt=document.createElement('option');
+    opt.value=f.name;
+    opt.textContent=(i===0?'Último: ':'')+f.name;
+    sel.appendChild(opt);
+  });
+  sel.value=seleccionado||planes[0].name;
+}
+async function cambiarPlanSemanal(){
+  const sel=$('planSelector');
+  if(!sel||!sel.value||!githubArchivos.length)return;
+  const file=githubArchivos.find(f=>f.name===sel.value);
+  if(!file)return;
+  try{
+    $('estadoCarga').innerHTML=`Cargando plan seleccionado <b>${file.name}</b>... <span class="gray pill">procesando</span>`;
+    planRows=await leerExcelGithub(file);
+    plan=mapPlan(planRows);
+    planArchivo='datos/'+file.name;
+    ultimaCarga=new Date().toLocaleString('es-CL');
+    render();
+  }catch(e){
+    console.error(e);
+    $('estadoCarga').innerHTML=`No se pudo cargar el plan seleccionado. <span class="bad pill">${e.message}</span>`;
+  }
 }
 async function leerExcelGithub(file){
   const base=(file.download_url || file);
@@ -235,8 +279,11 @@ async function cargarDatosGithub(){
   try{
     $('estadoCarga').innerHTML='Buscando últimos archivos en GitHub... <span class="gray pill">esperando</span>';
     const archivos=await listarArchivosDatos();
+    githubArchivos=archivos;
     const sapFile=elegirArchivo(archivos,'sap');
-    const planFile=elegirArchivo(archivos,'plan');
+    const planSel=$('planSelector')?.value;
+    let planFile=(planSel&&archivos.find(f=>f.name===planSel)) || elegirArchivo(archivos,'plan');
+    llenarSelectorPlanes(archivos, planFile.name);
     sapArchivo='datos/'+sapFile.name;
     planArchivo='datos/'+planFile.name;
     $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
