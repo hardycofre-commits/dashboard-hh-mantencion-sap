@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.7.1 - Piscicultura Lago Verde</title>
+<title>Dashboard HH Mantención SAP v3.7.2 - Piscicultura Lago Verde</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -61,7 +61,7 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
       <div class="cumplHH"><b>CUMPLIMIENTO HH</b><div class="big" id="topCumpl">0,0%</div><span id="topMeta">Bajo la meta</span></div>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-07-2026 al 31-07-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.7.1</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-07-2026 al 31-07-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.7.2</b></div></section>
 
     <section class="filters">
       <div><label>META HH MENSUAL</label><input id="metaHH" type="number" value="350"></div>
@@ -124,27 +124,30 @@ const $=id=>document.getElementById(id); const fmt=n=>Number(n||0).toLocaleStrin
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findCol(row,keys){const cols=Object.keys(row||{});return cols.find(c=>keys.some(k=>norm(c).includes(k)))||null}
 function toNum(v){
-  let raw=String(v??'').trim().replace(/\u00A0/g,' ');
-  // SAP puede traer anulaciones como 16,000- o con guiones especiales al final.
-  // También se considera negativo si viene como -16,000 o (16,000).
-  let neg=/^[\s\-−–—]/.test(raw) || /[\-−–—]\s*$/.test(raw) || /^\s*\(.*\)\s*$/.test(raw);
-  let s=raw
-    .replace(/^[\s\-−–—]+/, '')
-    .replace(/[\-−–—]\s*$/, '')
-    .replace(/[()]/g,'')
-    .replace(/\s/g,'')
-    .replace(/\./g,'')
-    .replace(',', '.')
-    .replace(/[^0-9.]/g,'');
+  let raw=String(v??'').trim();
+  // SAP puede traer anulaciones como 16,000- o 16.000-.
+  // También se consideran guiones Unicode al final.
+  raw=raw.replace(/[−–—]/g,'-');
+  let neg=/-\s*$/.test(raw)||/^\(.*\)$/.test(raw);
+  let s=raw.replace(/^\s*-/, '').replace(/-\s*$/, '').replace(/[()]/g,'').trim();
+  // Formato SAP/Chile: punto miles, coma decimal.
+  s=s.replace(/\./g,'').replace(',', '.').replace(/[^0-9.]/g,'');
   let n=parseFloat(s)||0;
-  return neg?-Math.abs(n):n
+  return neg ? -Math.abs(n) : n;
 }
-function excelDate(v){if(v instanceof Date)return v.toISOString().slice(0,10); if(typeof v==='number'&&v>30000){let d=XLSX.SSF.parse_date_code(v);return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`} let s=String(v||'').trim(); let m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/); if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; return s}
+function excelDate(v){if(v instanceof Date)return v.toISOString().slice(0,10); if(typeof v==='number'&&v>30000){let d=XLSX.SSF.parse_date_code(v);return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`} let s=String(v||'').trim(); let m=s.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/); if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; return s}
 function showDate(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}-${m[2]}-${m[1]}`:s}
 function showMes(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})/); if(!m)return s; const names=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return names[Number(m[2])-1]+' '+m[1]}
 function periodoMesesLabel(desde,hasta){let a=(desde||'').slice(0,7), b=(hasta||'').slice(0,7); if(!a&&!b)return 'Sin período'; if(a===b)return showMes(a); return showMes(a)+' a '+showMes(b)}
 function extractOT(v){let m=String(v||'').match(/\b(?:1|2|5)\d{7}\b/g);return m?m[0]:''}
-function parseWB(buffer){let wb=XLSX.read(buffer,{type:'array'});let ws=wb.Sheets[wb.SheetNames[0]];let aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});return detectTable(aoa)}
+function parseWB(buffer){
+  let wb=XLSX.read(buffer,{type:'array'});
+  let ws=wb.Sheets[wb.SheetNames[0]];
+  // raw:false mantiene el formato visible de SAP, por ejemplo 16,000-.
+  // Esto permite reconocer anulaciones de HH con guion al final.
+  let aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+  return detectTable(aoa);
+}
 async function readWB(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{res(parseWB(e.target.result))}catch(err){rej(err)}};r.onerror=rej;r.readAsArrayBuffer(file)})}
 function arrayBufferToBase64(buffer){let bytes=new Uint8Array(buffer),binary='';for(let i=0;i<bytes.byteLength;i++)binary+=String.fromCharCode(bytes[i]);return btoa(binary)}
 function base64ToArrayBuffer(base64){let binary=atob(base64),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes.buffer}
@@ -164,10 +167,19 @@ function detectTable(aoa){
   return aoa.slice(best+1).filter(r=>r && r.some(v=>String(v||'').trim()!=='')).map(r=>{let o={};headers.forEach((h,i)=>o[h]=r[i]??'');return o});
 }
 function findColExact(row,keys){const cols=Object.keys(row||{});return cols.find(c=>keys.some(k=>norm(c)===norm(k)))||cols.find(c=>keys.some(k=>norm(c).includes(norm(k))))||null}
+function findHHCol(row){
+  const cols=Object.keys(row||{});
+  const preferred=['HH','Horas','Horas reales','Trabajo real','Duracion real','Duración real','Actual work'];
+  let c=cols.find(col=>preferred.some(k=>norm(col)===norm(k))) || cols.find(col=>preferred.some(k=>norm(col).includes(norm(k))));
+  if(c)return c;
+  // Fallback: columnas con nombre Trabajo solo si el contenido parece número/HH.
+  const candidates=cols.filter(col=>/trabajo|work|hh|hora/i.test(norm(col)));
+  return candidates.find(col=>/\d/.test(String(row[col]||''))) || null;
+}
 function mapSAP(rows){return rows.map(r=>{
   let joined=Object.values(r).join(' ');
   let cOT=findColExact(r,['Numero de orden','Número de orden','Orden','Orden de trabajo','OT','Order']);
-  let cHH=findColExact(r,['HH','Horas','Horas reales','Trabajo real','Duracion real','Duración real','Trabajo','Actual work']);
+  let cHH=findHHCol(r);
   let cClase=findColExact(r,['Clase de orden','Clase orden','Clase','Tipo de orden','ClOrd']);
   let cFecha=findColExact(r,['Fecha','Fecha contabilización','Fecha contab.','Fecha de contabilización','Fecha notificación','Fecha inicio','Día']);
   let cTxt=findColExact(r,['Texto breve','Texto','Descripción','Descripcion','Trabajo','Operación','Operacion']);
