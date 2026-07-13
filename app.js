@@ -294,9 +294,43 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let mesesGraf={};sapCalc.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha'; if(!mesesGraf[k])mesesGraf[k]={hh:0};mesesGraf[k].hh+=x.hh});let labelsMes=Object.keys(mesesGraf).sort();destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsMes.map(showMes),datasets:[{label:'HH Real',data:labelsMes.map(f=>mesesGraf[f].hh),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:labelsMes.map(()=>metaMensual),borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
  let claseRaw=group(sapCalc,'clase','hh');let ordenClases=['ZM01','ZM02','ZM05'];let claseLabels=[],claseData=[],claseColors=[];ordenClases.concat(Object.keys(claseRaw).filter(k=>!ordenClases.includes(k))).forEach(k=>{if(claseRaw[k]){claseLabels.push(CLASS_INFO[k]?`${k} - ${CLASS_INFO[k]}`:k);claseData.push(claseRaw[k]);claseColors.push(k==='ZM01'?COLORS.sky:k==='ZM02'?COLORS.pink:k==='ZM05'?COLORS.orange:COLORS.gray)}});chart('chartTipo','pie',claseLabels,claseData,'HH',claseColors);let acumHH=[],acumMeta=[],a=0,m=0;labels.forEach(f=>{a+=dias[f].hh;m+=metaDia;acumHH.push(a);acumMeta.push(m)});destroy('chartAcum');charts.chartAcum=new Chart($('chartAcum'),{type:'line',data:{labels:labels.map(showDate),datasets:[{label:'HH Real acumulado',data:acumHH,borderColor:COLORS.blue,backgroundColor:COLORS.blue,tension:.25},{label:'Meta HH acumulada',data:acumMeta,borderColor:COLORS.green,backgroundColor:COLORS.green,tension:.25}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}});
  let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true}); let planCalc=plan.map(p=>({...p,estado:sapByOT[p.ot]?.not?'Notificada':'Pendiente'})); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
- let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td>${p.aviso}</td><td><b>${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><span class="pill ${p.estado==='Notificada'?'ok':'bad'}">${p.estado}</span></td></tr>`));}
+ let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><span class="pill ${p.estado==='Notificada'?'ok':'bad'}">${p.estado}</span></td></tr>`));}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
+
+async function copiarTextoSAP(texto,tipo,elemento){
+  const valor=String(texto||'').trim();
+  if(!valor)return;
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(valor);
+    }else{
+      const area=document.createElement('textarea');
+      area.value=valor;
+      area.style.position='fixed';
+      area.style.opacity='0';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    const original=elemento.textContent;
+    elemento.classList.add('copiado');
+    elemento.textContent='✓ '+valor;
+    setTimeout(()=>{
+      elemento.textContent=original;
+      elemento.classList.remove('copiado');
+    },900);
+  }catch(e){
+    console.error(e);
+    alert('No se pudo copiar. Selecciona el número y usa Ctrl + C.');
+  }
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('.copiable-sap');
+  if(el)copiarTextoSAP(el.dataset.copy,el.dataset.tipo,el);
+});
+
 cargarDatosGithub();
 
 

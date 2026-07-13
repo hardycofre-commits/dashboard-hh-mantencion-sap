@@ -40,3 +40,10 @@ datos/
 ```
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
+
+## Cambios v3.9.2
+
+- Copia con un clic los números de Aviso y Orden del Plan Semanal.
+- Destacado suave al pasar el mouse.
+- Confirmación breve después de copiar.
+- Se mantiene el mismo diseño de la versión estable.
