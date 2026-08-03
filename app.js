@@ -208,17 +208,9 @@ async function fechaUltimaCargaGithub(file){
 async function elegirSapMasReciente(files){
   const candidatos=obtenerCandidatos(files,'sap');
   if(!candidatos.length)throw new Error('No se encontró archivo SAP/EXPORT en la carpeta datos.');
-  const revisados=await Promise.all(candidatos.map(async file=>({
-    file,
-    fechaCarga:await fechaUltimaCargaGithub(file),
-    fechaNombre:scoreFechaNombre(file.name)
-  })));
-  revisados.sort((a,b)=>{
-    if(b.fechaCarga!==a.fechaCarga)return b.fechaCarga-a.fechaCarga;
-    if(b.fechaNombre!==a.fechaNombre)return b.fechaNombre-a.fechaNombre;
-    return b.file.name.localeCompare(a.file.name,'es',{numeric:true});
-  });
-  return revisados[0].file;
+  // obtenerCandidatos ya ordena los EXPORT por la fecha y hora de su nombre.
+  // Esto evita elegir un archivo antiguo solo porque fue vuelto a subir después.
+  return candidatos[0];
 }
 function llenarSelectorPlanes(files, seleccionado){
   const sel=$('planSelector');
@@ -265,8 +257,9 @@ async function cargarDatosGithub(){
     const archivos=await listarArchivosDatos();
     githubArchivos=archivos;
     const sapFile=await elegirSapMasReciente(archivos);
-    const planSel=$('planSelector')?.value;
-    let planFile=(planSel&&archivos.find(f=>f.name===planSel)) || elegirArchivo(archivos,'plan');
+    // Cada carga/actualización parte desde la semana más reciente disponible.
+    // El usuario aún puede revisar semanas anteriores usando el selector.
+    const planFile=elegirArchivo(archivos,'plan');
     llenarSelectorPlanes(archivos, planFile.name);
     sapArchivo='datos/'+sapFile.name;
     planArchivo='datos/'+planFile.name;
