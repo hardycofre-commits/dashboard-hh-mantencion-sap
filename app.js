@@ -348,10 +348,33 @@ cargarDatosGithub();
 
 
 function safeText(id){const el=$(id); return el?el.innerText.trim():''}
-function canvasImg(id, cls='pdfChart'){
-  const c=$(id);
-  if(!c) return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>';
-  try{return `<img class="${cls}" src="${c.toDataURL('image/png',1.0)}">`}catch(e){return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>'}
+function canvasImg(id, cls='pdfChart', images={}){
+  const src=images[id];
+  if(!src || src==='data:,') return '<div style="font-size:10px;color:#64748b">Gráfico no disponible</div>';
+  return `<img class="${cls}" src="${src}">`;
+}
+function nextFrame(){return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))}
+async function capturarGraficosInforme(){
+  // Chart.js no dimensiona correctamente un canvas dentro de una vista display:none.
+  const ocultas=[...document.querySelectorAll('.view:not(.active)')];
+  ocultas.forEach(v=>{
+    v.dataset.pdfStyle=v.getAttribute('style')||'';
+    Object.assign(v.style,{display:'block',position:'fixed',left:'-10000px',top:'0',width:'1200px',visibility:'hidden'});
+  });
+  render();
+  Object.values(charts).forEach(c=>{c.options.animation=false;c.resize();c.update('none')});
+  await nextFrame();
+  const images={};
+  ['chartDiario','chartAcum','chartTipo','chartPlan','chartEnc'].forEach(id=>{
+    try{images[id]=charts[id]?.toBase64Image()||$(id)?.toDataURL('image/png',1.0)||''}catch(e){images[id]=''}
+  });
+  ocultas.forEach(v=>{
+    const style=v.dataset.pdfStyle;
+    if(style)v.setAttribute('style',style);else v.removeAttribute('style');
+    delete v.dataset.pdfStyle;
+  });
+  Object.values(charts).forEach(c=>c.resize());
+  return images;
 }
 function buildPdfTablePlan(){
   const rows=[...document.querySelectorAll('#tablaPlan tbody tr')];
@@ -365,8 +388,8 @@ function buildPdfTablePlan(){
   if(rows.length>28){html+=`<tr><td colspan="7">Se muestran las primeras 28 OT de ${rows.length}. El detalle completo permanece disponible en el dashboard.</td></tr>`}
   html+='</tbody></table>'; return html;
 }
-function generarInformePDF(){
-  render();
+async function generarInformePDF(){
+  const chartImages=await capturarGraficosInforme();
   const now=new Date().toLocaleString('es-CL');
   const logo=document.querySelector('.logo img')?.src||'';
   const periodo=safeText('periodoTxt');
@@ -382,8 +405,8 @@ function generarInformePDF(){
       <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>Prom. HH/OT</b><span>${prom}</span></div>
     </div>
     <div class="pdfBox"><h3>Comentario ejecutivo</h3><div class="pdfComment">${comentario1}</div></div>
-    <div class="pdfGrid2"><div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall')}</div><div class="pdfBox"><h3>Cumplimiento acumulado</h3>${canvasImg('chartAcum','pdfChartTall')}</div></div>
-    <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChart')}</div>
+    <div class="pdfGrid2"><div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento acumulado</h3>${canvasImg('chartAcum','pdfChartTall',chartImages)}</div></div>
+    <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChart',chartImages)}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 2</span></div>
   </section>
   <section class="pdfPage" style="position:relative">
@@ -391,7 +414,7 @@ function generarInformePDF(){
     <div class="pdfKpis" style="grid-template-columns:repeat(4,1fr)">
       <div class="pdfKpi"><b>OT Planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>OT Notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>OT Pendientes</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento Plan</b><span>${pc}</span></div>
     </div>
-    <div class="pdfGrid2"><div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart')}</div><div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart')}</div></div>
+    <div class="pdfGrid2"><div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart',chartImages)}</div></div>
     <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>
     <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 2</span></div>
