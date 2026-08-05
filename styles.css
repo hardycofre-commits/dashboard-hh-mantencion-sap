@@ -5,38 +5,42 @@
 button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:12px 15px;font-weight:900;cursor:pointer}
 #printReport{display:none}
 @media print{
-  @page{size:A4 landscape;margin:8mm}
+  @page{size:Letter portrait;margin:6mm}
+  html,body{margin:0!important;padding:0!important}
   body{background:white!important;color:#062b63!important;font-family:Arial,Helvetica,sans-serif!important}
   .layout{display:none!important}
   #printReport{display:block!important}
-  .pdfPage{width:100%;min-height:185mm;padding:6mm 7mm;page-break-after:always;box-sizing:border-box}
+  .pdfPage{width:100%;height:255mm;min-height:0;padding:4mm 5mm;page-break-after:always;break-after:page;box-sizing:border-box;overflow:hidden}
   .pdfPage:last-child{page-break-after:auto}
   .pdfHead{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #062b63;padding-bottom:6px;margin-bottom:8px}
-  .pdfLogo{height:34px;max-width:160px;object-fit:contain}
+  .pdfLogo{height:30px;max-width:135px;object-fit:contain}
   .pdfTitle{text-align:center;flex:1;color:#062b63}
-  .pdfTitle h1{margin:0;font-size:18px}
-  .pdfTitle h2{margin:2px 0 0;font-size:14px;color:#0a6ee8}
-  .pdfMeta{text-align:right;font-size:9px;line-height:1.35;min-width:145px}
+  .pdfTitle h1{margin:0;font-size:15px}
+  .pdfTitle h2{margin:2px 0 0;font-size:12px;color:#0a6ee8}
+  .pdfMeta{text-align:right;font-size:7.5px;line-height:1.25;min-width:105px}
   .pdfKpis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:7px 0}
   .pdfKpi{border:1px solid #d9e3f0;border-radius:7px;padding:6px;background:#f7fbff}
   .pdfKpi b{display:block;font-size:8.5px;color:#062b63}
   .pdfKpi span{display:block;font-size:15px;font-weight:900;margin-top:2px;color:#062b63}
-  .pdfBox{border:1px solid #d9e3f0;border-radius:8px;padding:7px;margin-top:7px;background:white}
+  .pdfBox{border:1px solid #d9e3f0;border-radius:8px;padding:6px;margin-top:6px;background:white;break-inside:avoid;page-break-inside:avoid}
   .pdfBox h3{margin:0 0 5px;font-size:11px;color:#062b63}
   .pdfGrid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
   .pdfGrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
-  .pdfChart{width:100%;height:170px;object-fit:contain}
-  .pdfChartTall{width:100%;height:220px;object-fit:contain}
-  .pdfChartPie{display:block;width:55%;height:210px;object-fit:contain;margin:0 auto}
+  .pdfChart{width:100%;height:125px;object-fit:contain}
+  .pdfChartTall{width:100%;height:180px;object-fit:contain}
+  .pdfChartPie{display:block;width:72%;height:165px;object-fit:contain;margin:0 auto}
+  .pdfPageResumen .pdfKpis{grid-template-columns:repeat(3,1fr)}
+  .pdfPageResumen .pdfGrid2{grid-template-columns:1fr}
+  .pdfPagePlan .pdfKpis{grid-template-columns:repeat(2,1fr)!important}
   .pdfComment{font-size:10px;line-height:1.35;color:#0f2e5f}
-  .pdfFooter{position:absolute;bottom:5mm;left:7mm;right:7mm;border-top:1px solid #d9e3f0;padding-top:3px;font-size:8px;color:#64748b;display:flex;justify-content:space-between}
-  .pdfPlanTable{width:100%;border-collapse:collapse;font-size:7.2px}
-  .pdfPlanTable th{background:#eaf2ff;color:#062b63;text-align:left;padding:3px;border:1px solid #d9e3f0}
-  .pdfPlanTable td{padding:2.5px;border:1px solid #d9e3f0;vertical-align:top}
+  .pdfFooter{position:absolute;bottom:3mm;left:5mm;right:5mm;border-top:1px solid #d9e3f0;padding-top:3px;font-size:7px;color:#64748b;display:flex;justify-content:space-between}
+  .pdfPlanTable{width:100%;border-collapse:collapse;font-size:6.5px}
+  .pdfPlanTable th{background:#eaf2ff;color:#062b63;text-align:left;padding:2px;border:1px solid #d9e3f0}
+  .pdfPlanTable td{padding:1.7px;border:1px solid #d9e3f0;vertical-align:top}
   .pdfPlanTable th:nth-child(4),.pdfPlanTable td:nth-child(4){width:35%}
-  .pdfDailyTable{width:100%;border-collapse:collapse;font-size:9px}
-  .pdfDailyTable th{background:#eaf2ff;color:#062b63;text-align:center;padding:6px;border:1px solid #d9e3f0}
-  .pdfDailyTable td{text-align:center;padding:5px;border:1px solid #d9e3f0}
+  .pdfDailyTable{width:100%;border-collapse:collapse;font-size:8.5px}
+  .pdfDailyTable th{background:#eaf2ff;color:#062b63;text-align:center;padding:4px;border:1px solid #d9e3f0}
+  .pdfDailyTable td{text-align:center;padding:3px;border:1px solid #d9e3f0}
   .pdfDailyTable tbody tr:nth-child(even){background:#f7fbff}
   .pdfPositive{color:#15803d;font-weight:900}
   .pdfNegative{color:#b91c1c;font-weight:900}
