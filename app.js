@@ -431,7 +431,7 @@ function buildPdfTableDia(){
   html+='</tbody></table>';
   return html;
 }
-async function generarInformePDF(){
+async function generarInformePDF(imprimir=true){
   const chartImages=await capturarGraficosInforme();
   const now=new Date().toLocaleString('es-CL');
   const logo=document.querySelector('.logo img')?.src||'';
@@ -470,5 +470,5 @@ async function generarInformePDF(){
     <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 3 de 3</span></div>
   </section>`;
-  setTimeout(()=>window.print(),300);
+  if(imprimir)setTimeout(()=>window.print(),300);
 }
