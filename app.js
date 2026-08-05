@@ -355,12 +355,6 @@ function canvasImg(id, cls='pdfChart', images={}){
 }
 function nextFrame(){return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))}
 async function capturarGraficosInforme(){
-  // Chart.js no dimensiona correctamente un canvas dentro de una vista display:none.
-  const ocultas=[...document.querySelectorAll('.view:not(.active)')];
-  ocultas.forEach(v=>{
-    v.dataset.pdfStyle=v.getAttribute('style')||'';
-    Object.assign(v.style,{display:'block',position:'fixed',left:'-10000px',top:'0',width:'1200px',visibility:'hidden'});
-  });
   render();
   const tamanosPdf={
     chartDiario:[500,270],
@@ -369,29 +363,46 @@ async function capturarGraficosInforme(){
     chartPlan:[460,220],
     chartEnc:[500,220]
   };
-  Object.entries(tamanosPdf).forEach(([id,[ancho,alto]])=>{
-    const c=charts[id];
-    if(!c)return;
-    c.$responsiveInforme=c.options.responsive;
-    c.options.responsive=false;
-    c.options.animation=false;
-    c.resize(ancho,alto);
-    c.update('none');
-  });
   await nextFrame();
   const images={};
-  Object.keys(tamanosPdf).forEach(id=>{
-    try{images[id]=charts[id]?.toBase64Image()||$(id)?.toDataURL('image/png',1.0)||''}catch(e){images[id]=''}
-  });
-  ocultas.forEach(v=>{
-    const style=v.dataset.pdfStyle;
-    if(style)v.setAttribute('style',style);else v.removeAttribute('style');
-    delete v.dataset.pdfStyle;
-  });
-  Object.values(charts).forEach(c=>{
-    c.options.responsive=c.$responsiveInforme!==false;
-    delete c.$responsiveInforme;
-    c.resize();
+  Object.entries(tamanosPdf).forEach(([id,[ancho,alto]])=>{
+    let copia;
+    try{
+      const origen=charts[id];
+      if(!origen)throw new Error('Gráfico no disponible');
+      const tipo=origen.config.type;
+      const circular=tipo==='pie'||tipo==='doughnut';
+      const canvas=document.createElement('canvas');
+      canvas.width=ancho*2;
+      canvas.height=alto*2;
+      copia=new Chart(canvas,{
+        type:tipo,
+        data:JSON.parse(JSON.stringify(origen.data)),
+        options:{
+          responsive:false,animation:false,maintainAspectRatio:false,devicePixelRatio:2,
+          layout:{padding:circular?12:8},
+          plugins:{
+            legend:{display:true,position:'top',labels:{usePointStyle:circular,boxWidth:14,font:{size:13,weight:'bold'}}},
+            tooltip:{enabled:false}
+          },
+          scales:circular?{}:{
+            x:{ticks:{font:{size:11},maxRotation:45,minRotation:0},grid:{display:false}},
+            y:{beginAtZero:true,ticks:{font:{size:11}},grid:{color:'#dbe4ef'}}
+          },
+          elements:{line:{borderWidth:4},point:{radius:0}},
+          cutout:tipo==='doughnut'?'52%':undefined
+        },
+        plugins:circular?[piePercentPlugin]:[]
+      });
+      copia.resize(ancho,alto);
+      copia.update('none');
+      images[id]=copia.toBase64Image('image/png',1);
+    }catch(e){
+      console.error('No se pudo preparar '+id+' para el informe',e);
+      images[id]='';
+    }finally{
+      if(copia)copia.destroy();
+    }
   });
   return images;
 }
