@@ -42,12 +42,32 @@ function excelDate(v){if(v instanceof Date)return v.toISOString().slice(0,10); i
 function showDate(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}-${m[2]}-${m[1]}`:s}
 function showMes(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})/); if(!m)return s; const names=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return names[Number(m[2])-1]+' '+m[1]}
 function periodoMesesLabel(desde,hasta){let a=(desde||'').slice(0,7), b=(hasta||'').slice(0,7); if(!a&&!b)return 'Sin período'; if(a===b)return showMes(a); return showMes(a)+' a '+showMes(b)}
-function aplicarMesSeleccionado(actualizar=true){
-  const mes=$('mesPeriodo').value;
-  if(!/^\d{4}-\d{2}$/.test(mes))return;
-  const [anio,numeroMes]=mes.split('-').map(Number);
-  $('desde').value=mes+'-01';
-  $('hasta').value=`${mes}-${String(new Date(anio,numeroMes,0).getDate()).padStart(2,'0')}`;
+function llenarSelectorAnios(){
+  const anios=unique(sap.map(x=>(x.fecha||'').slice(0,4)).filter(x=>/^\d{4}$/.test(x))).sort().reverse();
+  const sel=$('anioPeriodo'),actual=sel.value;
+  sel.innerHTML='';
+  (anios.length?anios:[String(new Date().getFullYear())]).forEach(anio=>{const o=document.createElement('option');o.value=anio;o.textContent=anio;sel.appendChild(o)});
+  if(anios.includes(actual))sel.value=actual;
+}
+function cambiarTipoPeriodo(){
+  const anual=$('tipoPeriodo').value==='anual';
+  $('controlMes').classList.toggle('hidden',anual);
+  $('controlAnio').classList.toggle('hidden',!anual);
+  aplicarPeriodoSeleccionado();
+}
+function aplicarPeriodoSeleccionado(actualizar=true){
+  if($('tipoPeriodo').value==='anual'){
+    const anio=$('anioPeriodo').value;
+    if(!/^\d{4}$/.test(anio))return;
+    $('desde').value=anio+'-01-01';
+    $('hasta').value=anio+'-12-31';
+  }else{
+    const mes=$('mesPeriodo').value;
+    if(!/^\d{4}-\d{2}$/.test(mes))return;
+    const [anio,numeroMes]=mes.split('-').map(Number);
+    $('desde').value=mes+'-01';
+    $('hasta').value=`${mes}-${String(new Date(anio,numeroMes,0).getDate()).padStart(2,'0')}`;
+  }
   if(actualizar)render();
 }
 function extractOT(v){let m=String(v||'').match(/\b(?:1|2|5)\d{7}\b/g);return m?m[0]:''}
@@ -295,8 +315,9 @@ async function cargarDatosGithub(){
     $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
     sapRows=await leerExcelGithub(sapFile);
     sap=mapSAP(sapRows);
+    llenarSelectorAnios();
     const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
-    if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);aplicarMesSeleccionado(false)}
+    if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);$('anioPeriodo').value=ultimaFecha.slice(0,4);aplicarPeriodoSeleccionado(false)}
     planRows=await leerExcelGithub(planFile);
     plan=mapPlan(planRows);
     ultimaCarga=new Date().toLocaleString('es-CL');
@@ -429,8 +450,7 @@ function buildPdfTablePlan(){
   if(rows.length>28){html+=`<tr><td colspan="7">Se muestran las primeras 28 OT de ${rows.length}. El detalle completo permanece disponible en el dashboard.</td></tr>`}
   html+='</tbody></table>'; return html;
 }
-function buildPdfTableDia(){
-  const rows=[...document.querySelectorAll('#tablaDia tbody tr')];
+function buildPdfTableDia(rows=[...document.querySelectorAll('#tablaDia tbody tr')]){
   let html='<table class="pdfDailyTable"><thead><tr><th>Fecha</th><th>HH Real</th><th>Meta HH</th><th>Desviación</th><th>Cumplimiento</th><th>Órdenes</th></tr></thead><tbody>';
   rows.forEach(tr=>{
     const t=[...tr.children].map(td=>td.innerText.trim());
@@ -460,6 +480,18 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
   const pt=safeText('planTotal'), pn=safeText('planNotif'), pp=safeText('planPend'), pc=safeText('planPct');
   const comentario1=`Durante el período analizado se registraron ${hh} HH frente a una meta de ${meta} HH, alcanzando un cumplimiento de ${cumpl}. Se ejecutaron ${ots} órdenes de mantenimiento, con un promedio de ${prom} HH por orden.`;
   const comentario2=`Durante la semana se programaron ${pt} órdenes de trabajo, de las cuales ${pn} fueron notificadas. Permanecen ${pp} OT pendientes, alcanzando un cumplimiento del Plan Semanal de ${pc}.`;
+  const filasDiarias=[...document.querySelectorAll('#tablaDia tbody tr')];
+  const bloquesDiarios=[];
+  if(!filasDiarias.length)bloquesDiarios.push([]);else for(let i=0;i<filasDiarias.length;i+=26)bloquesDiarios.push(filasDiarias.slice(i,i+26));
+  const paginasDiarias=bloquesDiarios.map((filas,i)=>`
+  <section class="pdfPage pdfPageDiaria" data-seccion="diario" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Resumen diario del período${bloquesDiarios.length>1?` - Parte ${i+1} de ${bloquesDiarios.length}`:''}</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfKpis">
+      <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>Prom. HH/OT</b><span>${prom}</span></div>
+    </div>
+    <div class="pdfBox"><h3>Detalle diario de HH y cumplimiento</h3>${buildPdfTableDia(filas)}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span></span></div>
+  </section>`).join('');
   const rep=$('printReport');
   rep.innerHTML=`
   <section class="pdfPage pdfPageResumen" data-seccion="resumen" style="position:relative">
@@ -472,14 +504,7 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
     <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartPie',chartImages)}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 3</span></div>
   </section>
-  <section class="pdfPage pdfPageDiaria" data-seccion="diario" style="position:relative">
-    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Resumen diario del período</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
-    <div class="pdfKpis">
-      <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>Prom. HH/OT</b><span>${prom}</span></div>
-    </div>
-    <div class="pdfBox"><h3>Detalle diario de HH y cumplimiento</h3>${buildPdfTableDia()}</div>
-    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 3</span></div>
-  </section>
+  ${paginasDiarias}
   <section class="pdfPage pdfPagePlan" data-seccion="plan" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Cumplimiento Plan Semanal</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
     <div class="pdfKpis" style="grid-template-columns:repeat(4,1fr)">
