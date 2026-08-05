@@ -34,6 +34,12 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
   .pdfPlanTable th{background:#eaf2ff;color:#062b63;text-align:left;padding:3px;border:1px solid #d9e3f0}
   .pdfPlanTable td{padding:2.5px;border:1px solid #d9e3f0;vertical-align:top}
   .pdfPlanTable th:nth-child(4),.pdfPlanTable td:nth-child(4){width:35%}
+  .pdfDailyTable{width:100%;border-collapse:collapse;font-size:9px}
+  .pdfDailyTable th{background:#eaf2ff;color:#062b63;text-align:center;padding:6px;border:1px solid #d9e3f0}
+  .pdfDailyTable td{text-align:center;padding:5px;border:1px solid #d9e3f0}
+  .pdfDailyTable tbody tr:nth-child(even){background:#f7fbff}
+  .pdfPositive{color:#15803d;font-weight:900}
+  .pdfNegative{color:#b91c1c;font-weight:900}
   .pdfBadgeOk{background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 4px;font-weight:900}
   .pdfBadgeBad{background:#fee2e2;color:#b91c1c;border-radius:8px;padding:1px 4px;font-weight:900}
 }

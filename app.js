@@ -418,6 +418,19 @@ function buildPdfTablePlan(){
   if(rows.length>28){html+=`<tr><td colspan="7">Se muestran las primeras 28 OT de ${rows.length}. El detalle completo permanece disponible en el dashboard.</td></tr>`}
   html+='</tbody></table>'; return html;
 }
+function buildPdfTableDia(){
+  const rows=[...document.querySelectorAll('#tablaDia tbody tr')];
+  let html='<table class="pdfDailyTable"><thead><tr><th>Fecha</th><th>HH Real</th><th>Meta HH</th><th>Desviación</th><th>Cumplimiento</th><th>Órdenes</th></tr></thead><tbody>';
+  rows.forEach(tr=>{
+    const t=[...tr.children].map(td=>td.innerText.trim());
+    const desviacion=Number((t[3]||'0').replace(/\./g,'').replace(',','.'));
+    const cls=desviacion>=0?'pdfPositive':'pdfNegative';
+    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td class="${cls}">${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td></tr>`;
+  });
+  if(!rows.length)html+='<tr><td colspan="6">No hay registros diarios para el período seleccionado.</td></tr>';
+  html+='</tbody></table>';
+  return html;
+}
 async function generarInformePDF(){
   const chartImages=await capturarGraficosInforme();
   const now=new Date().toLocaleString('es-CL');
@@ -437,7 +450,15 @@ async function generarInformePDF(){
     <div class="pdfBox"><h3>Comentario ejecutivo</h3><div class="pdfComment">${comentario1}</div></div>
     <div class="pdfGrid2"><div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento acumulado</h3>${canvasImg('chartAcum','pdfChartTall',chartImages)}</div></div>
     <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartPie',chartImages)}</div>
-    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 2</span></div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 3</span></div>
+  </section>
+  <section class="pdfPage" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Resumen diario del período</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfKpis">
+      <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>Prom. HH/OT</b><span>${prom}</span></div>
+    </div>
+    <div class="pdfBox"><h3>Detalle diario de HH y cumplimiento</h3>${buildPdfTableDia()}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 3</span></div>
   </section>
   <section class="pdfPage" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Cumplimiento Plan Semanal</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
@@ -447,7 +468,7 @@ async function generarInformePDF(){
     <div class="pdfGrid2"><div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart',chartImages)}</div></div>
     <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>
     <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
-    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 2</span></div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 3 de 3</span></div>
   </section>`;
   setTimeout(()=>window.print(),300);
 }
