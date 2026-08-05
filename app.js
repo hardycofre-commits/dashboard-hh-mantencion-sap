@@ -363,11 +363,11 @@ async function capturarGraficosInforme(){
   });
   render();
   const tamanosPdf={
-    chartDiario:[560,230],
-    chartAcum:[560,230],
-    chartTipo:[520,190],
-    chartPlan:[520,190],
-    chartEnc:[560,190]
+    chartDiario:[500,270],
+    chartAcum:[500,270],
+    chartTipo:[460,230],
+    chartPlan:[460,220],
+    chartEnc:[500,220]
   };
   Object.entries(tamanosPdf).forEach(([id,[ancho,alto]])=>{
     const c=charts[id];
@@ -425,7 +425,7 @@ async function generarInformePDF(){
     </div>
     <div class="pdfBox"><h3>Comentario ejecutivo</h3><div class="pdfComment">${comentario1}</div></div>
     <div class="pdfGrid2"><div class="pdfBox"><h3>HH Real vs Meta</h3>${canvasImg('chartDiario','pdfChartTall',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento acumulado</h3>${canvasImg('chartAcum','pdfChartTall',chartImages)}</div></div>
-    <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChart',chartImages)}</div>
+    <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartPie',chartImages)}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 2</span></div>
   </section>
   <section class="pdfPage" style="position:relative">
