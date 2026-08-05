@@ -365,13 +365,15 @@ async function capturarGraficosInforme(){
   const tamanosPdf={
     chartDiario:[560,230],
     chartAcum:[560,230],
-    chartTipo:[1120,190],
-    chartPlan:[560,190],
+    chartTipo:[520,190],
+    chartPlan:[520,190],
     chartEnc:[560,190]
   };
   Object.entries(tamanosPdf).forEach(([id,[ancho,alto]])=>{
     const c=charts[id];
     if(!c)return;
+    c.$responsiveInforme=c.options.responsive;
+    c.options.responsive=false;
     c.options.animation=false;
     c.resize(ancho,alto);
     c.update('none');
@@ -386,7 +388,11 @@ async function capturarGraficosInforme(){
     if(style)v.setAttribute('style',style);else v.removeAttribute('style');
     delete v.dataset.pdfStyle;
   });
-  Object.values(charts).forEach(c=>c.resize());
+  Object.values(charts).forEach(c=>{
+    c.options.responsive=c.$responsiveInforme!==false;
+    delete c.$responsiveInforme;
+    c.resize();
+  });
   return images;
 }
 function buildPdfTablePlan(){
