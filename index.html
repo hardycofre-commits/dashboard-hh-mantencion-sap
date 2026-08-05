@@ -29,7 +29,7 @@
       <div><label>FECHA DESDE</label><input id="desde" type="date" value="2026-08-01"></div>
       <div><label>FECHA HASTA</label><input id="hasta" type="date" value="2026-08-31"></div>
       <div><label>CLASE DE ORDEN</label><select id="claseFiltro"><option>Todas</option></select></div>
-      <button class="primary" onclick="cargarDatosGithub()">↻ ACTUALIZAR</button><button class="pdfbtn" onclick="generarInformePDF()">📄 Informe PDF</button>
+      <button class="primary" onclick="cargarDatosGithub()">↻ ACTUALIZAR</button><button class="pdfbtn" onclick="abrirSelectorInforme()">📄 Informe PDF</button>
     </section>
 
     <section class="loadPanel" id="estadoDatosPanel">
@@ -74,6 +74,16 @@
     </section>
 
   </main>
+</div>
+<div id="modalInforme" class="reportModal" role="dialog" aria-modal="true" aria-labelledby="tituloModalInforme" onclick="if(event.target===this)cerrarSelectorInforme()">
+  <div class="reportModalCard">
+    <h2 id="tituloModalInforme">Seleccionar páginas del informe</h2>
+    <p>Marca las secciones que deseas incluir en el PDF.</p>
+    <label class="reportOption"><input type="checkbox" name="paginaInforme" value="resumen" checked><span><b>Resumen ejecutivo</b><small>Indicadores y tres gráficos principales</small></span></label>
+    <label class="reportOption"><input type="checkbox" name="paginaInforme" value="diario" checked><span><b>Resumen diario</b><small>Detalle de HH, meta, desviación y cumplimiento por día</small></span></label>
+    <label class="reportOption"><input type="checkbox" name="paginaInforme" value="plan" checked><span><b>Plan semanal</b><small>Cumplimiento, responsables y detalle de órdenes</small></span></label>
+    <div class="reportModalActions"><button type="button" class="reportCancel" onclick="cerrarSelectorInforme()">Cancelar</button><button type="button" class="primary" onclick="generarInformeSeleccionado()">Generar PDF</button></div>
+  </div>
 </div>
 <div id="printReport"></div>
 <script src="app.js?v=3.9.4"></script>

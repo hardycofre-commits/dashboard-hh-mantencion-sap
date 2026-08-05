@@ -431,7 +431,16 @@ function buildPdfTableDia(){
   html+='</tbody></table>';
   return html;
 }
-async function generarInformePDF(imprimir=true){
+function abrirSelectorInforme(){$('modalInforme').classList.add('open')}
+function cerrarSelectorInforme(){$('modalInforme').classList.remove('open')}
+function generarInformeSeleccionado(){
+  const secciones=[...document.querySelectorAll('input[name="paginaInforme"]:checked')].map(x=>x.value);
+  if(!secciones.length){alert('Selecciona al menos una sección para generar el informe.');return}
+  cerrarSelectorInforme();
+  generarInformePDF(true,secciones);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')cerrarSelectorInforme()});
+async function generarInformePDF(imprimir=true,secciones=['resumen','diario','plan']){
   const chartImages=await capturarGraficosInforme();
   const now=new Date().toLocaleString('es-CL');
   const logo=document.querySelector('.logo img')?.src||'';
@@ -442,7 +451,7 @@ async function generarInformePDF(imprimir=true){
   const comentario2=`Durante la semana se programaron ${pt} órdenes de trabajo, de las cuales ${pn} fueron notificadas. Permanecen ${pp} OT pendientes, alcanzando un cumplimiento del Plan Semanal de ${pc}.`;
   const rep=$('printReport');
   rep.innerHTML=`
-  <section class="pdfPage pdfPageResumen" style="position:relative">
+  <section class="pdfPage pdfPageResumen" data-seccion="resumen" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Piscicultura Lago Verde</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
     <div class="pdfKpis">
       <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>Prom. HH/OT</b><span>${prom}</span></div>
@@ -452,7 +461,7 @@ async function generarInformePDF(imprimir=true){
     <div class="pdfBox"><h3>Órdenes por tipo de mantenimiento</h3>${canvasImg('chartTipo','pdfChartPie',chartImages)}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 1 de 3</span></div>
   </section>
-  <section class="pdfPage pdfPageDiaria" style="position:relative">
+  <section class="pdfPage pdfPageDiaria" data-seccion="diario" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Resumen diario del período</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
     <div class="pdfKpis">
       <div class="pdfKpi"><b>HH Reales</b><span>${hh}</span></div><div class="pdfKpi"><b>Meta HH</b><span>${meta}</span></div><div class="pdfKpi"><b>Desviación</b><span>${desv}</span></div><div class="pdfKpi"><b>Cumplimiento</b><span>${cumpl}</span></div><div class="pdfKpi"><b>Órdenes</b><span>${ots}</span></div><div class="pdfKpi"><b>Prom. HH/OT</b><span>${prom}</span></div>
@@ -460,7 +469,7 @@ async function generarInformePDF(imprimir=true){
     <div class="pdfBox"><h3>Detalle diario de HH y cumplimiento</h3>${buildPdfTableDia()}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 2 de 3</span></div>
   </section>
-  <section class="pdfPage pdfPagePlan" style="position:relative">
+  <section class="pdfPage pdfPagePlan" data-seccion="plan" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Cumplimiento Plan Semanal</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
     <div class="pdfKpis" style="grid-template-columns:repeat(4,1fr)">
       <div class="pdfKpi"><b>OT Planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>OT Notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>OT Pendientes</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento Plan</b><span>${pc}</span></div>
@@ -470,5 +479,8 @@ async function generarInformePDF(imprimir=true){
     <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 3 de 3</span></div>
   </section>`;
+  rep.querySelectorAll('.pdfPage').forEach(p=>{if(!secciones.includes(p.dataset.seccion))p.remove()});
+  const paginas=[...rep.querySelectorAll('.pdfPage')];
+  paginas.forEach((p,i)=>{const numero=p.querySelector('.pdfFooter span:last-child');if(numero)numero.textContent=`Página ${i+1} de ${paginas.length}`});
   if(imprimir)setTimeout(()=>window.print(),300);
 }

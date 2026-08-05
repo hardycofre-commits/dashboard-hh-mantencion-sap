@@ -24,7 +24,7 @@ Características actuales:
 - Cálculo de HH netas por orden.
 - Tratamiento de anulaciones SAP.
 - Resumen, gráficos y detalle del Plan Semanal.
-- Informe PDF ejecutivo de dos páginas.
+- Informe PDF en formato Carta vertical con selector de secciones: resumen ejecutivo, resumen diario y plan semanal.
 - Tablas seleccionables para copiar Aviso u Orden con `Ctrl + C`.
 
 ## Publicación en GitHub Pages
