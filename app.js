@@ -13,6 +13,7 @@ const FALLBACK_DATA_FILES=[
 ];
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
+const META_HH_MENSUAL=350;
 const $=id=>document.getElementById(id); const fmt=n=>Number(n||0).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1});
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findCol(row,keys){const cols=Object.keys(row||{});return cols.find(c=>keys.some(k=>norm(c).includes(k)))||null}
@@ -41,6 +42,14 @@ function excelDate(v){if(v instanceof Date)return v.toISOString().slice(0,10); i
 function showDate(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}-${m[2]}-${m[1]}`:s}
 function showMes(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})/); if(!m)return s; const names=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return names[Number(m[2])-1]+' '+m[1]}
 function periodoMesesLabel(desde,hasta){let a=(desde||'').slice(0,7), b=(hasta||'').slice(0,7); if(!a&&!b)return 'Sin período'; if(a===b)return showMes(a); return showMes(a)+' a '+showMes(b)}
+function aplicarMesSeleccionado(actualizar=true){
+  const mes=$('mesPeriodo').value;
+  if(!/^\d{4}-\d{2}$/.test(mes))return;
+  const [anio,numeroMes]=mes.split('-').map(Number);
+  $('desde').value=mes+'-01';
+  $('hasta').value=`${mes}-${String(new Date(anio,numeroMes,0).getDate()).padStart(2,'0')}`;
+  if(actualizar)render();
+}
 function extractOT(v){let m=String(v||'').match(/\b(?:1|2|5)\d{7}\b/g);return m?m[0]:''}
 function cellValueHybrid(cell){
   if(!cell) return '';
@@ -286,6 +295,8 @@ async function cargarDatosGithub(){
     $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
     sapRows=await leerExcelGithub(sapFile);
     sap=mapSAP(sapRows);
+    const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
+    if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);aplicarMesSeleccionado(false)}
     planRows=await leerExcelGithub(planFile);
     plan=mapPlan(planRows);
     ultimaCarga=new Date().toLocaleString('es-CL');
@@ -296,7 +307,7 @@ async function cargarDatosGithub(){
     $('estadoCarga').innerHTML=`No se pudieron cargar los datos. Verifica que los Excel estén dentro de <b>datos/</b>. <span class="bad pill">${e.message}</span>`;
   }
 }
-function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=toNum($('metaHH').value),meses=mesesPeriodo(desde,hasta),meta=metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta));let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
+function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=META_HH_MENSUAL,meses=mesesPeriodo(desde,hasta),meta=metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta));let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
  let sapCalc=aggregateSAPByOrden(sapF);
  let hh=sapCalc.reduce((a,b)=>a+b.hh,0); let ot=unique(sapCalc.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title='Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
  let dias={};sapCalc.forEach(x=>{let f=x.fecha||'Sin fecha'; if(!dias[f])dias[f]={hh:0,ots:new Set()};dias[f].hh+=x.hh;dias[f].ots.add(x.ot)});let labels=Object.keys(dias).sort();let metaDia=metaMensual/30;

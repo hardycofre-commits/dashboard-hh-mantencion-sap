@@ -25,11 +25,11 @@
     <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.9.4</b></div></section>
 
     <section class="filters">
-      <div><label>META HH MENSUAL</label><input id="metaHH" type="number" value="350"></div>
-      <div><label>FECHA DESDE</label><input id="desde" type="date" value="2026-08-01"></div>
-      <div><label>FECHA HASTA</label><input id="hasta" type="date" value="2026-08-31"></div>
-      <div><label>CLASE DE ORDEN</label><select id="claseFiltro"><option>Todas</option></select></div>
-      <button class="primary" onclick="cargarDatosGithub()">↻ ACTUALIZAR</button><button class="pdfbtn" onclick="abrirSelectorInforme()">📄 Informe PDF</button>
+      <div><label>META HH MENSUAL</label><input id="metaHH" class="fixedInput" type="number" value="350" readonly aria-readonly="true" title="Meta mensual fija"></div>
+      <div><label>MES ANALIZADO</label><input id="mesPeriodo" type="month" value="2026-08" onchange="aplicarMesSeleccionado()"></div>
+      <input id="desde" type="hidden" value="2026-08-01"><input id="hasta" type="hidden" value="2026-08-31">
+      <div><label>CLASE DE ORDEN</label><select id="claseFiltro" onchange="render()"><option>Todas</option></select></div>
+      <button class="pdfbtn" onclick="abrirSelectorInforme()">📄 Informe PDF</button>
     </section>
 
     <section class="loadPanel" id="estadoDatosPanel">

@@ -25,6 +25,7 @@ Características actuales:
 - Tratamiento de anulaciones SAP.
 - Resumen, gráficos y detalle del Plan Semanal.
 - Informe PDF en formato Carta vertical con selector de secciones: resumen ejecutivo, resumen diario y plan semanal.
+- Selección automática del período por mes, meta mensual fija de 350 HH y actualización inmediata al cambiar filtros.
 - Tablas seleccionables para copiar Aviso u Orden con `Ctrl + C`.
 
 ## Publicación en GitHub Pages
