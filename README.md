@@ -49,3 +49,7 @@ Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctr
 - Destacado suave al pasar el mouse.
 - Confirmación breve después de copiar.
 - Se mantiene el mismo diseño de la versión estable.
+
+
+
+<!-- GitHub Pages redeploy 2026-08-06 -->
