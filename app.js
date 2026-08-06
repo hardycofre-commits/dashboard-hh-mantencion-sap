@@ -1,4 +1,4 @@
-let sapRows=[],sap=[],planRows=[],plan=[],charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
+let sapRows=[],sap=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`;
 const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-03T090738.938.xlsx','EXPORT - 2026-07-03T102715.587.xlsx',
@@ -67,6 +67,12 @@ function aplicarPeriodoSeleccionado(actualizar=true){
     const [anio,numeroMes]=mes.split('-').map(Number);
     $('desde').value=mes+'-01';
     $('hasta').value=`${mes}-${String(new Date(anio,numeroMes,0).getDate()).padStart(2,'0')}`;
+  }
+  const selectorPlan=$('planSelector');
+  if(selectorPlan && planesCargados && Object.keys(planesCargados).length){
+    selectorPlan.value='__periodo__';
+    plan=Object.values(planesCargados).flat();
+    planArchivo='Planes consolidados del período';
   }
   if(actualizar)render();
 }
@@ -267,23 +273,33 @@ function llenarSelectorPlanes(files, seleccionado){
   const planes=obtenerCandidatos(files,'plan');
   sel.innerHTML='';
   if(!planes.length){sel.innerHTML='<option value="">Sin planes disponibles</option>';return;}
+  const consolidado=document.createElement('option');
+  consolidado.value='__periodo__';
+  consolidado.textContent='Consolidado del período seleccionado';
+  sel.appendChild(consolidado);
   planes.forEach((f,i)=>{
     const opt=document.createElement('option');
     opt.value=f.name;
     opt.textContent=(i===0?'Último: ':'')+f.name;
     sel.appendChild(opt);
   });
-  sel.value=seleccionado||planes[0].name;
+  sel.value=seleccionado||'__periodo__';
 }
 async function cambiarPlanSemanal(){
   const sel=$('planSelector');
   if(!sel||!sel.value||!githubArchivos.length)return;
+  if(sel.value==='__periodo__'){
+    plan=Object.values(planesCargados).flat();
+    planArchivo='Planes consolidados del período';
+    render();
+    return;
+  }
   const file=githubArchivos.find(f=>f.name===sel.value);
   if(!file)return;
   try{
     $('estadoCarga').innerHTML=`Cargando plan seleccionado <b>${file.name}</b>... <span class="gray pill">procesando</span>`;
     planRows=await leerExcelGithub(file);
-    plan=mapPlan(planRows);
+    plan=mapPlan(planRows).map(p=>({...p,origen:file.name}));
     planArchivo='datos/'+file.name;
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
@@ -291,6 +307,18 @@ async function cambiarPlanSemanal(){
     console.error(e);
     $('estadoCarga').innerHTML=`No se pudo cargar el plan seleccionado. <span class="bad pill">${e.message}</span>`;
   }
+}
+async function cargarPlanesConsolidados(files){
+  const candidatos=obtenerCandidatos(files,'plan');
+  const resultados=await Promise.allSettled(candidatos.map(async file=>{
+    const rows=await leerExcelGithub(file);
+    return [file.name,mapPlan(rows).map(p=>({...p,origen:file.name}))];
+  }));
+  planesCargados={};
+  resultados.forEach(r=>{if(r.status==='fulfilled')planesCargados[r.value[0]]=r.value[1]});
+  plan=Object.values(planesCargados).flat();
+  planRows=[];
+  planArchivo='Planes consolidados del período';
 }
 async function leerExcelGithub(file){
   const base=(file.download_url || file);
@@ -309,17 +337,16 @@ async function cargarDatosGithub(){
     // Cada carga/actualización parte desde la semana más reciente disponible.
     // El usuario aún puede revisar semanas anteriores usando el selector.
     const planFile=elegirArchivo(archivos,'plan');
-    llenarSelectorPlanes(archivos, planFile.name);
+    llenarSelectorPlanes(archivos, '__periodo__');
     sapArchivo='datos/'+sapFile.name;
-    planArchivo='datos/'+planFile.name;
+    planArchivo='Planes consolidados del período';
     $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
     sapRows=await leerExcelGithub(sapFile);
     sap=mapSAP(sapRows);
     llenarSelectorAnios();
     const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
     if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);$('anioPeriodo').value=ultimaFecha.slice(0,4);aplicarPeriodoSeleccionado(false)}
-    planRows=await leerExcelGithub(planFile);
-    plan=mapPlan(planRows);
+    await cargarPlanesConsolidados(archivos);
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
   }catch(e){
@@ -338,7 +365,10 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  if($('tituloChartAcum'))$('tituloChartAcum').textContent='Cumplimiento acumulado del período - '+periodoMes;
  let mesesGraf={};sapCalc.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha'; if(!mesesGraf[k])mesesGraf[k]={hh:0};mesesGraf[k].hh+=x.hh});let labelsMes=Object.keys(mesesGraf).sort();destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsMes.map(showMes),datasets:[{label:'HH Real',data:labelsMes.map(f=>mesesGraf[f].hh),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:labelsMes.map(()=>metaMensual),borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
  let claseRaw=group(sapCalc,'clase','hh');let ordenClases=['ZM01','ZM02','ZM05'];let claseLabels=[],claseData=[],claseColors=[];ordenClases.concat(Object.keys(claseRaw).filter(k=>!ordenClases.includes(k))).forEach(k=>{if(claseRaw[k]){claseLabels.push(CLASS_INFO[k]?`${k} - ${CLASS_INFO[k]}`:k);claseData.push(claseRaw[k]);claseColors.push(k==='ZM01'?COLORS.sky:k==='ZM02'?COLORS.pink:k==='ZM05'?COLORS.orange:COLORS.gray)}});chart('chartTipo','pie',claseLabels,claseData,'HH',claseColors);let acumHH=[],acumMeta=[],a=0,m=0;labels.forEach(f=>{a+=dias[f].hh;m+=metaDia;acumHH.push(a);acumMeta.push(m)});destroy('chartAcum');charts.chartAcum=new Chart($('chartAcum'),{type:'line',data:{labels:labels.map(showDate),datasets:[{label:'HH Real acumulado',data:acumHH,borderColor:COLORS.blue,backgroundColor:COLORS.blue,borderWidth:3,borderDash:[],pointRadius:0,pointHoverRadius:4,spanGaps:true,tension:.25},{label:'Meta HH acumulada',data:acumMeta,borderColor:COLORS.green,backgroundColor:COLORS.green,borderWidth:3,borderDash:[],pointRadius:0,pointHoverRadius:4,spanGaps:true,tension:.25}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}});
- let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true}); let planCalc=plan.map(p=>({...p,estado:sapByOT[p.ot]?.not?'Notificada':'Pendiente'})); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
+ let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true});
+ let planPeriodo=plan.filter(p=>p.fecha && (!desde||p.fecha>=desde) && (!hasta||p.fecha<=hasta));
+ let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
+ let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>({...p,estado:sapByOT[p.ot]?.not?'Notificada':'Pendiente'})); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
  let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><span class="pill ${p.estado==='Notificada'?'ok':'bad'}">${p.estado}</span></td></tr>`));}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
