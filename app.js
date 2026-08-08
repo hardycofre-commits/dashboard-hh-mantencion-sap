@@ -477,13 +477,28 @@ function cerrarEstadoAviso(){
   document.body.classList.remove('modalOpen');
   avisoEstadoAbierto='';
 }
+function actualizarEstadosVisibles(){
+  document.querySelectorAll('.estadoBtn').forEach(btn=>{
+    const aviso=decodeURIComponent(btn.dataset.aviso||'');
+    const planItem=planActualPorAviso[aviso];
+    if(!planItem||planItem.estado==='Notificada')return;
+    const nuevoEstado=estadosTerreno[aviso]?.estado_terreno||'Pendiente';
+    if(btn.textContent===nuevoEstado)return;
+    planItem.estado=nuevoEstado;
+    btn.textContent=nuevoEstado;
+    btn.classList.remove('ok','bad','ejecucion','realizado');
+    btn.classList.add(nuevoEstado==='Realizado'?'realizado':nuevoEstado==='En ejecución'?'ejecucion':'bad');
+  });
+}
 async function cargarEstadosTerreno(silencioso=false){
   try{
     const r=await fetch(`${ESTADOS_API_URL}?t=${Date.now()}`,{cache:'no-store',redirect:'follow'});
     const data=await r.json();
     if(!data.ok)throw new Error(data.error||'No fue posible leer los estados.');
-    estadosTerreno={};(data.items||[]).forEach(item=>{if(item.aviso)estadosTerreno[String(item.aviso).trim()]=item});
-    render();
+    const nuevos={};(data.items||[]).forEach(item=>{if(item.aviso)nuevos[String(item.aviso).trim()]=item});
+    const huboCambios=JSON.stringify(nuevos)!==JSON.stringify(estadosTerreno);
+    estadosTerreno=nuevos;
+    if(huboCambios)actualizarEstadosVisibles();
   }catch(error){if(!silencioso)console.error('Estados de terreno:',error)}
 }
 async function guardarEstadoAviso(){
@@ -496,7 +511,7 @@ async function guardarEstadoAviso(){
     if(!data.ok)throw new Error(data.error||'No fue posible guardar.');
     estadosTerreno[avisoEstadoAbierto]=data.item;
     $('estadoMensaje').textContent='✓ Cambio guardado y sincronizado.';
-    render();
+    actualizarEstadosVisibles();
     setTimeout(cerrarEstadoAviso,650);
   }catch(error){$('estadoMensaje').textContent='No se pudo guardar: '+error.message}
   finally{btn.disabled=false}
