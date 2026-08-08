@@ -50,13 +50,38 @@ function llenarSelectorAnios(){
   if(anios.includes(actual))sel.value=actual;
 }
 function cambiarTipoPeriodo(){
-  const anual=$('tipoPeriodo').value==='anual';
-  $('controlMes').classList.toggle('hidden',anual);
-  $('controlAnio').classList.toggle('hidden',!anual);
+  const tipo=$('tipoPeriodo').value;
+  $('controlSemana').classList.toggle('hidden',tipo!=='semanal');
+  $('controlMes').classList.toggle('hidden',tipo!=='mensual');
+  $('controlAnio').classList.toggle('hidden',tipo!=='anual');
+  document.querySelectorAll('.periodSwitch [data-periodo]').forEach(btn=>btn.classList.toggle('active',btn.dataset.periodo===tipo));
   aplicarPeriodoSeleccionado();
 }
+function seleccionarTipoPeriodo(tipo){
+  $('tipoPeriodo').value=tipo;
+  cambiarTipoPeriodo();
+}
+function rangoSemanaIso(valor){
+  const m=String(valor||'').match(/^(\d{4})-W(\d{2})$/);
+  if(!m)return null;
+  const anio=Number(m[1]),semana=Number(m[2]);
+  const cuatroEnero=new Date(Date.UTC(anio,0,4));
+  const lunesSemanaUno=new Date(cuatroEnero);
+  lunesSemanaUno.setUTCDate(cuatroEnero.getUTCDate()-(cuatroEnero.getUTCDay()||7)+1);
+  const lunes=new Date(lunesSemanaUno);
+  lunes.setUTCDate(lunesSemanaUno.getUTCDate()+(semana-1)*7);
+  const domingo=new Date(lunes);
+  domingo.setUTCDate(lunes.getUTCDate()+6);
+  const iso=d=>d.toISOString().slice(0,10);
+  return {desde:iso(lunes),hasta:iso(domingo)};
+}
 function aplicarPeriodoSeleccionado(actualizar=true){
-  if($('tipoPeriodo').value==='anual'){
+  if($('tipoPeriodo').value==='semanal'){
+    const rango=rangoSemanaIso($('semanaPeriodo').value);
+    if(!rango)return;
+    $('desde').value=rango.desde;
+    $('hasta').value=rango.hasta;
+  }else if($('tipoPeriodo').value==='anual'){
     const anio=$('anioPeriodo').value;
     if(!/^\d{4}$/.test(anio))return;
     $('desde').value=anio+'-01-01';
