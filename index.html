@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.9.5 - Piscicultura Lago Verde</title>
+<title>Dashboard HH Mantención SAP v3.10.0 - Piscicultura Lago Verde</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="styles.css">
@@ -33,7 +33,7 @@
       <button class="pdfbtn" onclick="abrirSelectorInforme()">📄 Informe PDF</button>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.9.5</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.10.0</b></div></section>
 
     <section class="loadPanel" id="estadoDatosPanel">
       <div class="statusLine" id="estadoCarga">Cargando datos desde GitHub...</div>
@@ -78,6 +78,28 @@
 
   </main>
 </div>
+<div id="modalEstado" class="estadoModal" role="dialog" aria-modal="true" aria-labelledby="tituloModalEstado" onclick="if(event.target===this)cerrarEstadoAviso()">
+  <div class="estadoModalCard">
+    <div class="estadoModalHead">
+      <div><span class="estadoEyebrow">ACTUALIZACIÓN EN TERRENO</span><h2 id="tituloModalEstado">Estado del aviso</h2></div>
+      <button type="button" class="estadoClose" aria-label="Cerrar" onclick="cerrarEstadoAviso()">×</button>
+    </div>
+    <div class="estadoResumen">
+      <div><small>N° aviso</small><b id="estadoAviso">—</b></div>
+      <div><small>N° orden</small><b id="estadoOrden">—</b></div>
+      <div class="estadoTrabajo"><small>Trabajo planificado</small><b id="estadoTrabajo">—</b></div>
+    </div>
+    <div id="estadoSapInfo" class="estadoSapInfo hidden">Este trabajo ya aparece <b>Notificado en SAP</b>. La información de terreno queda disponible solo para consulta.</div>
+    <div class="estadoFormGrid">
+      <div class="estadoField full"><label for="estadoTerreno">ESTADO DEL TRABAJO</label><select id="estadoTerreno" onchange="actualizarFechasEstado()"><option>Pendiente</option><option>En ejecución</option><option>Realizado</option></select></div>
+      <div class="estadoField"><label for="estadoInicio">FECHA Y HORA DE INICIO</label><input id="estadoInicio" type="datetime-local"></div>
+      <div class="estadoField"><label for="estadoTermino">FECHA Y HORA DE TÉRMINO</label><input id="estadoTermino" type="datetime-local"></div>
+      <div class="estadoField full"><label for="estadoDetalle">DETALLE DEL TRABAJO REALIZADO</label><textarea id="estadoDetalle" maxlength="2000" rows="5" placeholder="Describe brevemente lo realizado, materiales utilizados u observaciones..."></textarea><small class="estadoHint">Máximo 2.000 caracteres.</small></div>
+    </div>
+    <div id="estadoMensaje" class="estadoMensaje" aria-live="polite"></div>
+    <div class="estadoActions"><button type="button" class="reportCancel" onclick="cerrarEstadoAviso()">Cancelar</button><button id="guardarEstadoBtn" type="button" class="primary" onclick="guardarEstadoAviso()">Guardar cambio</button></div>
+  </div>
+</div>
 <div id="modalInforme" class="reportModal" role="dialog" aria-modal="true" aria-labelledby="tituloModalInforme" onclick="if(event.target===this)cerrarSelectorInforme()">
   <div class="reportModalCard">
     <h2 id="tituloModalInforme">Seleccionar páginas del informe</h2>
@@ -89,7 +111,7 @@
   </div>
 </div>
 <div id="printReport"></div>
-<script src="app.js?v=3.9.5"></script>
+<script src="app.js?v=3.10.0"></script>
 
 </body>
 </html>

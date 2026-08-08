@@ -1,4 +1,6 @@
 let sapRows=[],sap=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
+const ESTADOS_API_URL='https://script.google.com/macros/s/AKfycbwryr1x44hIG9wUeU_8kc0ZmOjBwXT7TXjeAhluQh46EdidOjg1pDLJIkCl61VJVovt/exec';
+let estadosTerreno={},planActualPorAviso={},avisoEstadoAbierto='';
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`;
 const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-03T090738.938.xlsx','EXPORT - 2026-07-03T102715.587.xlsx',
@@ -393,8 +395,8 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true});
  let planPeriodo=plan.filter(p=>p.fecha && (!desde||p.fecha>=desde) && (!hasta||p.fecha<=hasta));
  let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
- let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>({...p,estado:sapByOT[p.ot]?.not?'Notificada':'Pendiente'})); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
- let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><span class="pill ${p.estado==='Notificada'?'ok':'bad'}">${p.estado}</span></td></tr>`));}
+ let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});planActualPorAviso={};planCalc.forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p}); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
+ let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${p.estado}</button></td></tr>`)});}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 
@@ -429,9 +431,79 @@ async function copiarTextoSAP(texto,tipo,elemento){
 document.addEventListener('click',e=>{
   const el=e.target.closest('.copiable-sap');
   if(el)copiarTextoSAP(el.dataset.copy,el.dataset.tipo,el);
+  const estadoBtn=e.target.closest('.estadoBtn');
+  if(estadoBtn)abrirEstadoAviso(decodeURIComponent(estadoBtn.dataset.aviso||''));
 });
 
-cargarDatosGithub();
+function fechaInput(valor){
+  if(!valor)return'';
+  const d=new Date(valor);
+  if(Number.isNaN(d.getTime()))return'';
+  const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+  return local.toISOString().slice(0,16);
+}
+function ahoraInput(){return fechaInput(new Date().toISOString())}
+function actualizarFechasEstado(){
+  const estado=$('estadoTerreno').value;
+  if(estado==='Pendiente'){$('estadoInicio').value='';$('estadoTermino').value=''}
+  if(estado==='En ejecución'&&!$('estadoInicio').value)$('estadoInicio').value=ahoraInput();
+  if(estado==='Realizado'){
+    if(!$('estadoInicio').value)$('estadoInicio').value=ahoraInput();
+    if(!$('estadoTermino').value)$('estadoTermino').value=ahoraInput();
+  }
+}
+function abrirEstadoAviso(aviso){
+  const planItem=planActualPorAviso[String(aviso||'').trim()];
+  if(!planItem)return;
+  avisoEstadoAbierto=String(aviso).trim();
+  const guardado=estadosTerreno[avisoEstadoAbierto]||{};
+  const notificada=planItem.estado==='Notificada';
+  $('estadoAviso').textContent=avisoEstadoAbierto||'Sin aviso';
+  $('estadoOrden').textContent=planItem.ot||'—';
+  $('estadoTrabajo').textContent=planItem.trabajo||'Sin descripción';
+  $('estadoTerreno').value=notificada?'Realizado':(guardado.estado_terreno||'Pendiente');
+  $('estadoInicio').value=fechaInput(guardado.fecha_inicio);
+  $('estadoTermino').value=fechaInput(guardado.fecha_termino);
+  $('estadoDetalle').value=guardado.detalle_realizado||'';
+  $('estadoSapInfo').classList.toggle('hidden',!notificada);
+  ['estadoTerreno','estadoInicio','estadoTermino','estadoDetalle'].forEach(id=>$(id).disabled=notificada);
+  $('guardarEstadoBtn').classList.toggle('hidden',notificada);
+  $('estadoMensaje').textContent='';
+  $('modalEstado').classList.add('open');
+  document.body.classList.add('modalOpen');
+}
+function cerrarEstadoAviso(){
+  $('modalEstado').classList.remove('open');
+  document.body.classList.remove('modalOpen');
+  avisoEstadoAbierto='';
+}
+async function cargarEstadosTerreno(silencioso=false){
+  try{
+    const r=await fetch(`${ESTADOS_API_URL}?t=${Date.now()}`,{cache:'no-store',redirect:'follow'});
+    const data=await r.json();
+    if(!data.ok)throw new Error(data.error||'No fue posible leer los estados.');
+    estadosTerreno={};(data.items||[]).forEach(item=>{if(item.aviso)estadosTerreno[String(item.aviso).trim()]=item});
+    render();
+  }catch(error){if(!silencioso)console.error('Estados de terreno:',error)}
+}
+async function guardarEstadoAviso(){
+  const btn=$('guardarEstadoBtn');
+  btn.disabled=true;$('estadoMensaje').textContent='Guardando en Google Drive…';
+  try{
+    const body=new URLSearchParams({aviso:avisoEstadoAbierto,estado_terreno:$('estadoTerreno').value,fecha_inicio:$('estadoInicio').value,fecha_termino:$('estadoTermino').value,detalle_realizado:$('estadoDetalle').value.trim()});
+    const r=await fetch(ESTADOS_API_URL,{method:'POST',body,redirect:'follow'});
+    const data=await r.json();
+    if(!data.ok)throw new Error(data.error||'No fue posible guardar.');
+    estadosTerreno[avisoEstadoAbierto]=data.item;
+    $('estadoMensaje').textContent='✓ Cambio guardado y sincronizado.';
+    render();
+    setTimeout(cerrarEstadoAviso,650);
+  }catch(error){$('estadoMensaje').textContent='No se pudo guardar: '+error.message}
+  finally{btn.disabled=false}
+}
+
+cargarDatosGithub().then(()=>cargarEstadosTerreno());
+setInterval(()=>cargarEstadosTerreno(true),20000);
 
 
 function safeText(id){const el=$(id); return el?el.innerText.trim():''}
