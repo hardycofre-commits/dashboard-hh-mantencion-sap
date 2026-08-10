@@ -532,6 +532,29 @@ function actualizarFechasEstado(){
     if(!$('estadoTermino').value)$('estadoTermino').value=ahoraInput();
   }
 }
+function sincronizarEstadoPorFechas(){
+  const inicio=$('estadoInicio').value;
+  const termino=$('estadoTermino').value;
+  $('estadoInicio').setCustomValidity('');
+  $('estadoTermino').setCustomValidity('');
+  if(termino&&!inicio){
+    const mensaje='Debe completar la fecha y hora de inicio antes de informar el término.';
+    $('estadoInicio').setCustomValidity(mensaje);
+    $('estadoMensaje').textContent='⚠ '+mensaje;
+    return false;
+  }
+  if(inicio&&termino&&new Date(termino)<new Date(inicio)){
+    const mensaje='La fecha y hora de término no puede ser anterior al inicio.';
+    $('estadoTermino').setCustomValidity(mensaje);
+    $('estadoMensaje').textContent='⚠ '+mensaje;
+    return false;
+  }
+  if(inicio&&termino)$('estadoTerreno').value='Realizado';
+  else if(inicio)$('estadoTerreno').value='En ejecución';
+  else $('estadoTerreno').value='Pendiente';
+  $('estadoMensaje').textContent=inicio&&termino?'Estado actualizado automáticamente a Realizado.':inicio?'Estado actualizado automáticamente a En ejecución.':'';
+  return true;
+}
 function abrirEstadoAviso(aviso){
   const planItem=planActualPorAviso[String(aviso||'').trim()];
   if(!planItem)return;
@@ -583,6 +606,11 @@ async function cargarEstadosTerreno(silencioso=false){
 }
 async function guardarEstadoAviso(){
   const btn=$('guardarEstadoBtn');
+  if(!sincronizarEstadoPorFechas()){
+    $('estadoInicio').reportValidity();
+    $('estadoTermino').reportValidity();
+    return;
+  }
   btn.disabled=true;$('estadoMensaje').textContent='Guardando en Google Drive…';
   try{
     const body=new URLSearchParams({aviso:avisoEstadoAbierto,estado_terreno:$('estadoTerreno').value,fecha_inicio:$('estadoInicio').value,fecha_termino:$('estadoTermino').value,detalle_realizado:$('estadoDetalle').value.trim()});
