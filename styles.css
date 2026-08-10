@@ -112,8 +112,8 @@ body.modalOpen{overflow:hidden}
 .estadoFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .estadoField.full{grid-column:1/-1}
 .estadoField textarea{width:100%;resize:vertical;border:1px solid #ccd8e8;border-radius:7px;padding:11px;color:#07316c;font:inherit;min-height:105px}
-.requiredMark{color:#dc2626;font-size:16px;line-height:0}
-.estadoImportante{display:block;color:#b91c1c;font-weight:900;margin-top:5px}
+.fechaHoraControl{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:7px}
+.fechaHoraControl input{min-width:0}
 .estadoHint{display:block;text-align:right;color:#718096;margin-top:4px}
 .estadoMensaje{min-height:20px;margin-top:12px;color:#0a6ee8;font-weight:800}
 .estadoActions{display:flex;justify-content:flex-end;gap:9px;margin-top:10px}

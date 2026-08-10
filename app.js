@@ -523,6 +523,47 @@ function fechaInput(valor){
   return local.toISOString().slice(0,16);
 }
 function ahoraInput(){return fechaInput(new Date().toISOString())}
+function mostrarFechaHoraEnCampos(prefijo,valor){
+  const [fecha='',hora='']=String(valor||'').split('T');
+  $("estado"+prefijo+"Fecha").value=fecha;
+  $("estado"+prefijo+"Hora").value=hora.slice(0,5);
+}
+function actualizarFechaHoraDesdeCampos(prefijo){
+  const fecha=$("estado"+prefijo+"Fecha");
+  const hora=$("estado"+prefijo+"Hora");
+  let digitos=hora.value.replace(/\D/g,'').slice(0,4);
+  hora.setCustomValidity('');
+  if(digitos.length===4){
+    const hh=Number(digitos.slice(0,2)),mm=Number(digitos.slice(2));
+    if(hh>23||mm>59){
+      hora.setCustomValidity('Ingrese una hora válida entre 0000 y 2359.');
+      $("estado"+prefijo).value='';
+      $('estadoMensaje').textContent='⚠ Ingrese una hora válida, por ejemplo 1430 para 14:30.';
+      return false;
+    }
+    hora.value=digitos.slice(0,2)+':'+digitos.slice(2);
+    $("estado"+prefijo).value=fecha.value?fecha.value+'T'+hora.value:'';
+  }else{
+    hora.value=digitos;
+    $("estado"+prefijo).value='';
+  }
+  sincronizarEstadoPorFechas();
+  return true;
+}
+function validarCamposFechaHora(){
+  for(const prefijo of ['Inicio','Termino']){
+    const fecha=$("estado"+prefijo+"Fecha"),hora=$("estado"+prefijo+"Hora");
+    fecha.setCustomValidity('');
+    hora.setCustomValidity('');
+    if((fecha.value||hora.value)&&!$("estado"+prefijo).value){
+      const mensaje=!fecha.value?'Seleccione la fecha.':'Complete la hora con cuatro dígitos, por ejemplo 1430.';
+      (!fecha.value?fecha:hora).setCustomValidity(mensaje);
+      $('estadoMensaje').textContent='⚠ '+mensaje;
+      return false;
+    }
+  }
+  return true;
+}
 function actualizarFechasEstado(){
   const estado=$('estadoTerreno').value;
   if(estado==='Pendiente'){$('estadoInicio').value='';$('estadoTermino').value=''}
@@ -531,21 +572,23 @@ function actualizarFechasEstado(){
     if(!$('estadoInicio').value)$('estadoInicio').value=ahoraInput();
     if(!$('estadoTermino').value)$('estadoTermino').value=ahoraInput();
   }
+  mostrarFechaHoraEnCampos('Inicio',$('estadoInicio').value);
+  mostrarFechaHoraEnCampos('Termino',$('estadoTermino').value);
 }
 function sincronizarEstadoPorFechas(){
   const inicio=$('estadoInicio').value;
   const termino=$('estadoTermino').value;
-  $('estadoInicio').setCustomValidity('');
-  $('estadoTermino').setCustomValidity('');
+  $('estadoInicioFecha').setCustomValidity('');
+  $('estadoTerminoFecha').setCustomValidity('');
   if(termino&&!inicio){
     const mensaje='Debe completar la fecha y hora de inicio antes de informar el término.';
-    $('estadoInicio').setCustomValidity(mensaje);
+    $('estadoInicioFecha').setCustomValidity(mensaje);
     $('estadoMensaje').textContent='⚠ '+mensaje;
     return false;
   }
   if(inicio&&termino&&new Date(termino)<new Date(inicio)){
     const mensaje='La fecha y hora de término no puede ser anterior al inicio.';
-    $('estadoTermino').setCustomValidity(mensaje);
+    $('estadoTerminoFecha').setCustomValidity(mensaje);
     $('estadoMensaje').textContent='⚠ '+mensaje;
     return false;
   }
@@ -567,9 +610,11 @@ function abrirEstadoAviso(aviso){
   $('estadoTerreno').value=notificada?'Realizado':(guardado.estado_terreno||'Pendiente');
   $('estadoInicio').value=fechaInput(guardado.fecha_inicio);
   $('estadoTermino').value=fechaInput(guardado.fecha_termino);
+  mostrarFechaHoraEnCampos('Inicio',$('estadoInicio').value);
+  mostrarFechaHoraEnCampos('Termino',$('estadoTermino').value);
   $('estadoDetalle').value=guardado.detalle_realizado||'';
   $('estadoSapInfo').classList.toggle('hidden',!notificada);
-  ['estadoTerreno','estadoInicio','estadoTermino','estadoDetalle'].forEach(id=>$(id).disabled=notificada);
+  ['estadoTerreno','estadoInicioFecha','estadoInicioHora','estadoTerminoFecha','estadoTerminoHora','estadoDetalle'].forEach(id=>$(id).disabled=notificada);
   $('guardarEstadoBtn').classList.toggle('hidden',notificada);
   $('estadoMensaje').textContent='';
   $('modalEstado').classList.add('open');
@@ -606,9 +651,15 @@ async function cargarEstadosTerreno(silencioso=false){
 }
 async function guardarEstadoAviso(){
   const btn=$('guardarEstadoBtn');
+  if(!validarCamposFechaHora()){
+    ['estadoInicioFecha','estadoInicioHora','estadoTerminoFecha','estadoTerminoHora'].forEach(id=>$(id).reportValidity());
+    return;
+  }
   if(!sincronizarEstadoPorFechas()){
-    $('estadoInicio').reportValidity();
-    $('estadoTermino').reportValidity();
+    $('estadoInicioFecha').reportValidity();
+    $('estadoInicioHora').reportValidity();
+    $('estadoTerminoFecha').reportValidity();
+    $('estadoTerminoHora').reportValidity();
     return;
   }
   btn.disabled=true;$('estadoMensaje').textContent='Guardando en Google Drive…';
