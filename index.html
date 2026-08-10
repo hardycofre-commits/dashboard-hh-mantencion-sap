@@ -56,16 +56,8 @@
     </section>
 
     <section id="plan" class="view">
+      <select id="planSelector" class="hidden" aria-hidden="true" tabindex="-1" onchange="cambiarPlanSemanal()"><option value="">Cargando planes...</option></select>
       <div class="grid">
-        <div class="card col12">
-          <div style="display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:end">
-            <div>
-              <label>PLAN DE MANTENCIÓN A VISUALIZAR</label>
-              <select id="planSelector" onchange="cambiarPlanSemanal()"><option value="">Cargando planes...</option></select>
-            </div>
-            <div class="miniHelp">El consolidado suma las OT planificadas dentro del mes o año seleccionado, elimina órdenes repetidas y actualiza KPI, gráficos y detalle. También puedes revisar un archivo semanal específico.</div>
-          </div>
-        </div>
         <div class="card kpi col3"><div class="ico">📋</div><div><h3>OT Planificadas</h3><div class="val" id="planTotal">0</div><div class="sub">Del período seleccionado</div></div></div>
         <div class="card kpi col3"><div class="ico">✅</div><div><h3>OT Notificadas</h3><div class="val" id="planNotif">0</div><div class="sub">Encontradas en SAP</div></div></div>
         <div class="card kpi col3"><div class="ico">⏳</div><div><h3>OT Pendientes</h3><div class="val" id="planPend">0</div><div class="sub">Aún sin notificación</div></div></div>
