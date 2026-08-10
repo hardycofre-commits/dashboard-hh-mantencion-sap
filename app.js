@@ -600,17 +600,13 @@ function sincronizarEstadoPorFechas(){
   $('estadoMensaje').textContent=inicio&&termino?'Estado actualizado automáticamente a Realizado.':inicio?'Estado actualizado automáticamente a En ejecución.':'';
   return true;
 }
-function camposProtegidosEstado(){return['estadoTerreno','estadoInicioFecha','estadoInicioHora']}
 function configurarProteccionEstado(notificada=false){
   edicionEstadoAutorizada=false;
   $('estadoClave').value='';
   const tieneInicio=!!estadoEdicionOriginal.inicio;
   const tieneTermino=!!estadoEdicionOriginal.termino;
-  $('estadoProteccion').classList.toggle('hidden',notificada||!tieneInicio);
+  $('estadoProteccion').classList.add('hidden');
   if(tieneInicio&&!notificada){
-    camposProtegidosEstado().forEach(id=>$(id).disabled=true);
-    $('estadoTerminoFecha').disabled=tieneTermino;
-    $('estadoTerminoHora').disabled=tieneTermino;
     $('estadoProteccionTexto').textContent=tieneTermino
       ?'🔒 El estado y ambas fechas están protegidos. Ingrese la clave para modificarlos.'
       :'🔒 El inicio está protegido. Puede registrar el término; para cambiar el estado o el inicio debe ingresar la clave.';
