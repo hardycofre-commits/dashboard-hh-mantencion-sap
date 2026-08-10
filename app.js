@@ -312,6 +312,15 @@ function llenarSelectorPlanes(files, seleccionado){
   });
   sel.value=seleccionado||'__periodo__';
 }
+function seleccionarUltimoPlanDisponible(actualizar=true){
+  const ultimo=obtenerCandidatos(githubArchivos,'plan')[0];
+  if(!ultimo || !planesCargados[ultimo.name])return;
+  const sel=$('planSelector');
+  if(sel)sel.value=ultimo.name;
+  plan=planesCargados[ultimo.name];
+  planArchivo='datos/'+ultimo.name;
+  if(actualizar)render();
+}
 async function cambiarPlanSemanal(){
   const sel=$('planSelector');
   if(!sel||!sel.value||!githubArchivos.length)return;
@@ -364,7 +373,7 @@ async function cargarDatosGithub(){
     // Cada carga/actualización parte desde la semana más reciente disponible.
     // El usuario aún puede revisar semanas anteriores usando el selector.
     const planFile=elegirArchivo(archivos,'plan');
-    llenarSelectorPlanes(archivos, '__periodo__');
+    llenarSelectorPlanes(archivos, planFile.name);
     sapArchivo='datos/'+sapFile.name;
     planArchivo='Planes consolidados del período';
     $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
@@ -374,6 +383,7 @@ async function cargarDatosGithub(){
     const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
     if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);$('anioPeriodo').value=ultimaFecha.slice(0,4);aplicarPeriodoSeleccionado(false)}
     await cargarPlanesConsolidados(archivos);
+    seleccionarUltimoPlanDisponible(false);
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
   }catch(e){
@@ -397,7 +407,7 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
  let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});planActualPorAviso={};planCalc.forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p}); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
  let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${p.estado}</button></td></tr>`)});}
-function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id))}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')seleccionarUltimoPlanDisponible()}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 
 async function copiarTextoSAP(texto,tipo,elemento){

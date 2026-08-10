@@ -89,8 +89,9 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 body.modalOpen{overflow:hidden}
 .estadoBtn{border:0;cursor:pointer;font-family:inherit;white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease}
 .estadoBtn:hover{transform:translateY(-1px);box-shadow:0 3px 9px rgba(5,44,104,.18)}
+.estadoBtn:not(.ok)::after{content:' \270E';font-size:13px;margin-left:4px;color:currentColor}
 .pill.ejecucion,.ejecucion{background:#dbeafe;color:#1d4ed8}
-.pill.realizado,.realizado{background:#d1fae5;color:#047857}
+.pill.realizado,.realizado{background:#ede9fe;color:#6d28d9}
 .estadoModal{display:none;position:fixed;inset:0;background:rgba(2,20,48,.68);z-index:1200;align-items:center;justify-content:center;padding:16px}
 .estadoModal.open{display:flex}
 .estadoModalCard{width:min(690px,100%);max-height:92vh;overflow:auto;background:white;border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,20,55,.38)}
