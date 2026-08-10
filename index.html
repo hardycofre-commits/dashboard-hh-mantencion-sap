@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.10.2 - Piscicultura Lago Verde</title>
+<title>Dashboard HH Mantención SAP v3.10.3 - Piscicultura Lago Verde</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=3.10.2">
+<link rel="stylesheet" href="styles.css?v=3.10.3">
 
 </head>
 <body>
@@ -33,7 +33,7 @@
       <button class="pdfbtn" onclick="abrirSelectorInforme()">📄 Informe PDF</button>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.10.2</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.10.3</b></div></section>
 
     <section class="loadPanel" id="estadoDatosPanel">
       <div class="statusLine" id="estadoCarga">Cargando datos desde GitHub...</div>
@@ -82,6 +82,7 @@
       <div class="estadoTrabajo"><small>Trabajo planificado</small><b id="estadoTrabajo">—</b></div>
     </div>
     <div id="estadoSapInfo" class="estadoSapInfo hidden">Este trabajo ya aparece <b>Notificado en SAP</b>. La información de terreno queda disponible solo para consulta.</div>
+    <div id="estadoProteccion" class="estadoProteccion hidden"><div id="estadoProteccionTexto"></div><div class="estadoClaveControl"><input id="estadoClave" type="password" autocomplete="off" placeholder="Clave para modificar" aria-label="Clave para modificar estado y fechas"><button type="button" onclick="desbloquearEdicionEstado()">Desbloquear</button></div></div>
     <div class="estadoFormGrid">
       <div class="estadoField full"><label for="estadoTerreno">ESTADO DEL TRABAJO</label><select id="estadoTerreno" required aria-required="true" onchange="actualizarFechasEstado()"><option>Pendiente</option><option>En ejecución</option><option>Realizado</option></select></div>
       <div class="estadoField"><label for="estadoInicioFecha">FECHA Y HORA DE INICIO</label><div class="fechaHoraControl"><input id="estadoInicioFecha" type="date" aria-label="Fecha de inicio" onchange="actualizarFechaHoraDesdeCampos('Inicio')"><input id="estadoInicioHora" type="text" inputmode="numeric" maxlength="5" placeholder="HHMM" aria-label="Hora de inicio, cuatro dígitos" oninput="actualizarFechaHoraDesdeCampos('Inicio')"></div><input id="estadoInicio" type="hidden"></div>
@@ -103,7 +104,7 @@
   </div>
 </div>
 <div id="printReport"></div>
-<script src="app.js?v=3.10.2"></script>
+<script src="app.js?v=3.10.3"></script>
 
 </body>
 </html>

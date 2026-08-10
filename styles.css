@@ -109,6 +109,10 @@ body.modalOpen{overflow:hidden}
 .estadoResumen b{display:block;color:#062b63;font-size:15px}
 .estadoResumen .estadoTrabajo{grid-column:1/-1}
 .estadoSapInfo{background:#e8fff0;border:1px solid #a7e3b9;color:#166534;border-radius:10px;padding:11px;margin-bottom:14px}
+.estadoProteccion{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:10px;padding:11px;margin-bottom:14px;font-weight:800}
+.estadoClaveControl{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:9px}
+.estadoClaveControl input{border-color:#fdba74}
+.estadoClaveControl button{border:0;border-radius:7px;background:#9a3412;color:white;padding:0 13px;font-weight:900;cursor:pointer}
 .estadoFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .estadoField.full{grid-column:1/-1}
 .estadoField textarea{width:100%;resize:vertical;border:1px solid #ccd8e8;border-radius:7px;padding:11px;color:#07316c;font:inherit;min-height:105px}

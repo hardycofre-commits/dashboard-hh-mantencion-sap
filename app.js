@@ -2,6 +2,8 @@ let sapRows=[],sap=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchiv
 const ESTADOS_API_URL='https://script.google.com/macros/s/AKfycbwryr1x44hIG9wUeU_8kc0ZmOjBwXT7TXjeAhluQh46EdidOjg1pDLJIkCl61VJVovt/exec';
 let estadosTerreno={},planActualPorAviso={},avisoEstadoAbierto='';
 let encargadoPlanFiltrado='';
+let estadoEdicionOriginal={estado:'Pendiente',inicio:'',termino:''},edicionEstadoAutorizada=false;
+const CLAVE_EDICION_ESTADO='m4nt3nc10n';
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`;
 const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-03T090738.938.xlsx','EXPORT - 2026-07-03T102715.587.xlsx',
@@ -598,6 +600,42 @@ function sincronizarEstadoPorFechas(){
   $('estadoMensaje').textContent=inicio&&termino?'Estado actualizado automáticamente a Realizado.':inicio?'Estado actualizado automáticamente a En ejecución.':'';
   return true;
 }
+function camposProtegidosEstado(){return['estadoTerreno','estadoInicioFecha','estadoInicioHora']}
+function configurarProteccionEstado(notificada=false){
+  edicionEstadoAutorizada=false;
+  $('estadoClave').value='';
+  const tieneInicio=!!estadoEdicionOriginal.inicio;
+  const tieneTermino=!!estadoEdicionOriginal.termino;
+  $('estadoProteccion').classList.toggle('hidden',notificada||!tieneInicio);
+  if(tieneInicio&&!notificada){
+    camposProtegidosEstado().forEach(id=>$(id).disabled=true);
+    $('estadoTerminoFecha').disabled=tieneTermino;
+    $('estadoTerminoHora').disabled=tieneTermino;
+    $('estadoProteccionTexto').textContent=tieneTermino
+      ?'🔒 El estado y ambas fechas están protegidos. Ingrese la clave para modificarlos.'
+      :'🔒 El inicio está protegido. Puede registrar el término; para cambiar el estado o el inicio debe ingresar la clave.';
+  }
+}
+function desbloquearEdicionEstado(){
+  if($('estadoClave').value!==CLAVE_EDICION_ESTADO){
+    $('estadoMensaje').textContent='⚠ Clave incorrecta. No se habilitaron los cambios.';
+    $('estadoClave').select();
+    return;
+  }
+  edicionEstadoAutorizada=true;
+  ['estadoTerreno','estadoInicioFecha','estadoInicioHora','estadoTerminoFecha','estadoTerminoHora'].forEach(id=>$(id).disabled=false);
+  $('estadoProteccion').classList.add('hidden');
+  $('estadoMensaje').textContent='✓ Edición de estado y fechas habilitada.';
+}
+function cambioProtegidoSinClave(){
+  if(edicionEstadoAutorizada||!estadoEdicionOriginal.inicio)return false;
+  const inicio=$('estadoInicio').value,termino=$('estadoTermino').value,estado=$('estadoTerreno').value;
+  if(estadoEdicionOriginal.termino){
+    return inicio!==estadoEdicionOriginal.inicio||termino!==estadoEdicionOriginal.termino||estado!==estadoEdicionOriginal.estado;
+  }
+  const estadoPermitido=termino?'Realizado':estadoEdicionOriginal.estado;
+  return inicio!==estadoEdicionOriginal.inicio||estado!==estadoPermitido;
+}
 function abrirEstadoAviso(aviso){
   const planItem=planActualPorAviso[String(aviso||'').trim()];
   if(!planItem)return;
@@ -610,11 +648,13 @@ function abrirEstadoAviso(aviso){
   $('estadoTerreno').value=notificada?'Realizado':(guardado.estado_terreno||'Pendiente');
   $('estadoInicio').value=fechaInput(guardado.fecha_inicio);
   $('estadoTermino').value=fechaInput(guardado.fecha_termino);
+  estadoEdicionOriginal={estado:$('estadoTerreno').value,inicio:$('estadoInicio').value,termino:$('estadoTermino').value};
   mostrarFechaHoraEnCampos('Inicio',$('estadoInicio').value);
   mostrarFechaHoraEnCampos('Termino',$('estadoTermino').value);
   $('estadoDetalle').value=guardado.detalle_realizado||'';
   $('estadoSapInfo').classList.toggle('hidden',!notificada);
   ['estadoTerreno','estadoInicioFecha','estadoInicioHora','estadoTerminoFecha','estadoTerminoHora','estadoDetalle'].forEach(id=>$(id).disabled=notificada);
+  configurarProteccionEstado(notificada);
   $('guardarEstadoBtn').classList.toggle('hidden',notificada);
   $('estadoMensaje').textContent='';
   $('modalEstado').classList.add('open');
@@ -660,6 +700,12 @@ async function guardarEstadoAviso(){
     $('estadoInicioHora').reportValidity();
     $('estadoTerminoFecha').reportValidity();
     $('estadoTerminoHora').reportValidity();
+    return;
+  }
+  if(cambioProtegidoSinClave()){
+    $('estadoProteccion').classList.remove('hidden');
+    $('estadoMensaje').textContent='⚠ Ingrese la clave para modificar el estado o las fechas protegidas.';
+    $('estadoClave').focus();
     return;
   }
   btn.disabled=true;$('estadoMensaje').textContent='Guardando en Google Drive…';
