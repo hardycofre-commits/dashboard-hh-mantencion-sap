@@ -406,7 +406,7 @@ async function cargarDatosGithub(){
     const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
     if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);$('anioPeriodo').value=ultimaFecha.slice(0,4);aplicarPeriodoSeleccionado(false)}
     await cargarPlanesConsolidados(archivos);
-    seleccionarUltimoPlanDisponible(false);
+    seleccionarUltimoPlanDisponible(false,$('plan').classList.contains('active'));
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
   }catch(e){
