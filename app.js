@@ -1,6 +1,7 @@
 let sapRows=[],sap=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
 const ESTADOS_API_URL='https://script.google.com/macros/s/AKfycbwryr1x44hIG9wUeU_8kc0ZmOjBwXT7TXjeAhluQh46EdidOjg1pDLJIkCl61VJVovt/exec';
 let estadosTerreno={},planActualPorAviso={},avisoEstadoAbierto='';
+let encargadoPlanFiltrado='';
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`;
 const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-03T090738.938.xlsx','EXPORT - 2026-07-03T102715.587.xlsx',
@@ -320,6 +321,32 @@ function llenarSelectorPlanes(files, seleccionado){
   });
   sel.value=seleccionado||'__periodo__';
 }
+function filtrarAvisosPorEncargado(encargado){
+  encargadoPlanFiltrado=encargadoPlanFiltrado===encargado?'':encargado;
+  aplicarFiltroEncargado();
+}
+function aplicarFiltroEncargado(){
+  document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>{
+    const coincide=!encargadoPlanFiltrado || tr.children[4]?.textContent.trim()===encargadoPlanFiltrado;
+    tr.classList.toggle('hidden',!coincide);
+  });
+  const titulo=$('tituloDetallePlan');
+  if(titulo)titulo.textContent=encargadoPlanFiltrado?`Avisos de ${encargadoPlanFiltrado}`:'Detalle del Plan del Período';
+}
+function activarFiltroGraficoEncargados(){
+  const grafico=charts.chartEnc;
+  if(!grafico)return;
+  grafico.options.onClick=(evento,elementos)=>{
+    let indice=elementos?.[0]?.index;
+    if(indice==null && grafico.scales.x && evento.x>=grafico.chartArea.left && evento.x<=grafico.chartArea.right){
+      indice=Math.round(grafico.scales.x.getValueForPixel(evento.x));
+    }
+    const encargado=grafico.data.labels[indice];
+    if(encargado)filtrarAvisosPorEncargado(encargado);
+  };
+  grafico.options.onHover=(evento)=>{evento.native.target.style.cursor='pointer'};
+  grafico.update();
+}
 function seleccionarUltimoPlanDisponible(actualizar=true,sincronizarPeriodo=false){
   const ultimo=obtenerCandidatos(githubArchivos,'plan')[0];
   if(!ultimo || !planesCargados[ultimo.name])return;
@@ -428,8 +455,8 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true});
  let planPeriodo=plan.filter(p=>p.fecha && (!desde||p.fecha>=desde) && (!hasta||p.fecha<=hasta));
  let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
- let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});planActualPorAviso={};planCalc.forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p}); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');
- let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${p.estado}</button></td></tr>`)});}
+ let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});planActualPorAviso={};planCalc.forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p}); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});chart('chartEnc','bar',Object.keys(enc),Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');activarFiltroGraficoEncargados();
+ let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${p.aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${p.aviso}</span></td><td><b class="copiable-sap" data-copy="${p.ot}" data-tipo="Orden" title="Clic para copiar orden">${p.ot}</b></td><td>${p.trabajo}</td><td>${p.encargado}</td><td>${p.turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${p.estado}</button></td></tr>`)});aplicarFiltroEncargado();}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')seleccionarUltimoPlanDisponible(true,true)}
 function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 
