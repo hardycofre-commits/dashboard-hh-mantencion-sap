@@ -89,6 +89,10 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 body.modalOpen{overflow:hidden}
 .estadoBtn{border:0;cursor:pointer;font-family:inherit;white-space:nowrap;transition:transform .15s ease,box-shadow .15s ease}
 .estadoBtn:hover{transform:translateY(-1px);box-shadow:0 3px 9px rgba(5,44,104,.18)}
+.encargadoFiltros{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0 2px}
+.encargadoFiltros button{border:1px solid #9fc5f3;border-radius:999px;background:#eef6ff;color:#07316c;padding:7px 12px;font-weight:900;cursor:pointer;transition:background .15s ease,color .15s ease,box-shadow .15s ease}
+.encargadoFiltros button:hover{box-shadow:0 2px 7px rgba(10,110,232,.2)}
+.encargadoFiltros button.active{background:#0a6ee8;color:white;border-color:#0a6ee8}
 .estadoBtn:not(.ok)::after{content:' \270E';font-size:13px;margin-left:4px;color:currentColor}
 .pill.ejecucion,.ejecucion{background:#dbeafe;color:#1d4ed8}
 .pill.realizado,.realizado{background:#ede9fe;color:#6d28d9}
