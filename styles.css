@@ -115,6 +115,7 @@ body.modalOpen{overflow:hidden}
 .estadoClaveControl button{border:0;border-radius:7px;background:#9a3412;color:white;padding:0 13px;font-weight:900;cursor:pointer}
 .estadoFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .estadoField.full{grid-column:1/-1}
+.estadoCierreAviso{grid-column:1/-1;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:10px;padding:11px 13px;line-height:1.4}
 .estadoField textarea{width:100%;resize:vertical;border:1px solid #ccd8e8;border-radius:7px;padding:11px;color:#07316c;font:inherit;min-height:105px}
 .fechaHoraControl{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:7px}
 .fechaHoraControl input{min-width:0}

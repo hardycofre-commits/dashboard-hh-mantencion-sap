@@ -588,8 +588,11 @@ function sincronizarEstadoPorFechas(){
     $('estadoMensaje').textContent='⚠ '+mensaje;
     return false;
   }
-  if(inicio&&termino&&new Date(termino)<new Date(inicio)){
-    const mensaje='La fecha y hora de término no puede ser anterior al inicio.';
+  if(inicio&&termino&&new Date(termino)<=new Date(inicio)){
+    const sonIguales=new Date(termino).getTime()===new Date(inicio).getTime();
+    const mensaje=sonIguales
+      ?'La fecha y hora de inicio y de término deben ser distintas. El término debe ser posterior al inicio.'
+      :'La fecha y hora de término no puede ser anterior al inicio. El término debe ser posterior al inicio.';
     $('estadoTerminoFecha').setCustomValidity(mensaje);
     $('estadoMensaje').textContent='⚠ '+mensaje;
     return false;
