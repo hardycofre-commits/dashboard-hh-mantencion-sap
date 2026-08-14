@@ -52,4 +52,18 @@ Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctr
 
 
 
+## Generación y envío automático de informes PDF
+
+El flujo `.github/workflows/informe-automatico.yml` se ejecuta cada vez que se agrega o actualiza un Excel dentro de `datos/` en la rama `main`. El proceso abre el dashboard actualizado, genera automáticamente el informe completo que entrega el botón **Informe PDF**, guarda una copia histórica en `informes/` y la envía por correo.
+
+Para activar el envío, agrega estos secretos en **GitHub > Settings > Secrets and variables > Actions**:
+
+- `SMTP_HOST`: servidor SMTP (para Microsoft 365: `smtp.office365.com`).
+- `SMTP_PORT`: puerto SMTP (para Microsoft 365: `587`).
+- `SMTP_USER`: cuenta que enviará el correo.
+- `SMTP_PASSWORD`: contraseña de aplicación de la cuenta remitente.
+- `DESTINATARIOS_INFORME`: correo del planificador; posteriormente puede contener varios correos separados por comas.
+
+El flujo también conserva durante 90 días una copia descargable en GitHub Actions. Puede probarse manualmente desde **GitHub > Actions > Generar y enviar informe PDF > Run workflow**.
+
 <!-- GitHub Pages redeploy 2026-08-06 -->
