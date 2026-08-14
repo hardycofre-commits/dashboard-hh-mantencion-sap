@@ -2,6 +2,7 @@ let sapRows=[],sap=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchiv
 const ESTADOS_API_URL='https://script.google.com/macros/s/AKfycbwryr1x44hIG9wUeU_8kc0ZmOjBwXT7TXjeAhluQh46EdidOjg1pDLJIkCl61VJVovt/exec';
 let estadosTerreno={},planActualPorAviso={},avisoEstadoAbierto='';
 let encargadoPlanFiltrado='';
+let estadoPlanFiltrado='';
 let estadoEdicionOriginal={estado:'Pendiente',inicio:'',termino:''},edicionEstadoAutorizada=false;
 const CLAVE_EDICION_ESTADO='m4nt3nc10n';
 const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`;
@@ -328,18 +329,31 @@ function filtrarAvisosPorEncargado(encargado){
   encargadoPlanFiltrado=encargadoPlanFiltrado===encargado?'':encargado;
   aplicarFiltroEncargado();
 }
+function cambiarFiltroEstadoPlan(estado){
+  estadoPlanFiltrado=estadoPlanFiltrado===estado?'':estado;
+  aplicarFiltroEncargado();
+}
+function activarFiltroPlanTeclado(evento,estado){
+  if(evento.key==='Enter'||evento.key===' '){evento.preventDefault();cambiarFiltroEstadoPlan(estado)}
+}
 function aplicarFiltroEncargado(){
   document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>{
-    const coincide=!encargadoPlanFiltrado || tr.children[4]?.textContent.trim()===encargadoPlanFiltrado;
+    const encargado=tr.children[5]?.textContent.trim(),estado=tr.children[7]?.textContent.trim()||'';
+    const coincideEncargado=!encargadoPlanFiltrado||encargado===encargadoPlanFiltrado;
+    const coincideEstado=!estadoPlanFiltrado||(estadoPlanFiltrado==='notificadas'?estado==='Notificada':estado!=='Notificada');
+    const coincide=coincideEncargado&&coincideEstado;
     tr.classList.toggle('hidden',!coincide);
+    if(!coincide){const check=tr.querySelector('.planFilaCheck');if(check)check.checked=false}
   });
   const titulo=$('tituloDetallePlan');
-  if(titulo)titulo.textContent=encargadoPlanFiltrado?`Avisos de ${encargadoPlanFiltrado}`:'Detalle del Plan del Período';
+  if(titulo){const estadoTexto=estadoPlanFiltrado==='notificadas'?'OT Notificadas':estadoPlanFiltrado==='pendientes'?'OT Pendientes':'';titulo.textContent=[estadoTexto,encargadoPlanFiltrado?`de ${encargadoPlanFiltrado}`:''].filter(Boolean).join(' ')||'Detalle del Plan del Período'}
+  document.querySelectorAll('.planKpiFilter').forEach(card=>{const activo=card.id===(estadoPlanFiltrado==='notificadas'?'cardPlanNotif':estadoPlanFiltrado==='pendientes'?'cardPlanPend':'');card.classList.toggle('active',activo);card.setAttribute('aria-pressed',String(activo))});
   document.querySelectorAll('#encargadoFiltros button').forEach(btn=>{
     const activo=btn.dataset.encargado===encargadoPlanFiltrado;
     btn.classList.toggle('active',activo);
     btn.setAttribute('aria-pressed',String(activo));
   });
+  if(typeof actualizarSeleccionPlan==='function')actualizarSeleccionPlan();
 }
 function mostrarBotonesEncargados(encargados){
   const contenedor=$('encargadoFiltros');
@@ -479,9 +493,9 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let planPeriodo=plan.filter(p=>p.fecha && (!desde||p.fecha>=desde) && (!hasta||p.fecha<=hasta));
  let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
  let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});planActualPorAviso={};planCalc.forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p}); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});const encargados=Object.keys(enc);chart('chartEnc','bar',encargados,Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');mostrarBotonesEncargados(encargados);activarFiltroGraficoEncargados();
- let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';const trabajo=htmlSeguro(p.trabajo),aviso=htmlSeguro(p.aviso),orden=htmlSeguro(p.ot),estado=htmlSeguro(p.estado);tp.insertAdjacentHTML('beforeend',`<tr><td>${showDate(p.fecha)}</td><td><span class="copiable-sap" data-copy="${aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${aviso}</span></td><td><b class="copiable-sap" data-copy="${orden}" data-tipo="Orden" title="Clic para copiar orden">${orden}</b></td><td><span class="copiable-sap" data-copy="${trabajo}" data-tipo="Trabajo" title="Clic para copiar trabajo">${trabajo}</span></td><td>${p.encargado}</td><td>${p.turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${estado}</button></td><td class="planSeleccion"><input type="checkbox" class="planFilaCheck" aria-label="Seleccionar aviso ${aviso}" data-aviso="${aviso}" data-orden="${orden}" data-trabajo="${trabajo}" data-estado="${estado}"></td></tr>`)});aplicarFiltroEncargado();actualizarSeleccionPlan();}
+ let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';const fecha=htmlSeguro(showDate(p.fecha)),trabajo=htmlSeguro(p.trabajo),aviso=htmlSeguro(p.aviso),orden=htmlSeguro(p.ot),encargado=htmlSeguro(p.encargado),turno=htmlSeguro(p.turno),estado=htmlSeguro(p.estado);tp.insertAdjacentHTML('beforeend',`<tr><td class="planSeleccion"><input type="checkbox" class="planFilaCheck" aria-label="Seleccionar aviso ${aviso}" data-fecha="${fecha}" data-aviso="${aviso}" data-orden="${orden}" data-trabajo="${trabajo}" data-encargado="${encargado}" data-turno="${turno}" data-estado="${estado}"></td><td>${fecha}</td><td><span class="copiable-sap" data-copy="${aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${aviso}</span></td><td><b class="copiable-sap" data-copy="${orden}" data-tipo="Orden" title="Clic para copiar orden">${orden}</b></td><td><span class="copiable-sap" data-copy="${trabajo}" data-tipo="Trabajo" title="Clic para copiar trabajo">${trabajo}</span></td><td>${encargado}</td><td>${turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${estado}</button></td></tr>`)});aplicarFiltroEncargado();actualizarSeleccionPlan();}
 function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')seleccionarUltimoPlanDisponible(true,true)}
-function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].slice(0,7).map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
+function exportarCSV(){let rows=[['Fecha','Aviso','OT','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].slice(1,8).map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 
 function checksPlan(){return [...document.querySelectorAll('#tablaPlan .planFilaCheck')]}
 function actualizarSeleccionPlan(){
@@ -489,11 +503,6 @@ function actualizarSeleccionPlan(){
   const btn=$('copiarPlanSeleccionado');
   if(btn){btn.textContent=`Copiar seleccionados (${total})`;btn.disabled=!total}
 }
-function seleccionarPendientesPlan(){
-  checksPlan().forEach(check=>{const visible=!check.closest('tr').classList.contains('hidden');check.checked=visible&&norm(check.dataset.estado)==='pendiente'});
-  actualizarSeleccionPlan();
-}
-function limpiarSeleccionPlan(){checksPlan().forEach(check=>check.checked=false);actualizarSeleccionPlan();$('mensajeCopiaPlan').textContent=''}
 async function escribirPortapapeles(valor){
   if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(valor);return}
   const area=document.createElement('textarea');area.value=valor;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();
@@ -501,11 +510,12 @@ async function escribirPortapapeles(valor){
 async function copiarSeleccionPlan(){
   const seleccion=checksPlan().filter(x=>x.checked);
   if(!seleccion.length)return;
-  const texto=seleccion.map(x=>[x.dataset.aviso,x.dataset.orden,x.dataset.trabajo].join('\t')).join('\n');
+  const texto=seleccion.map(x=>[x.dataset.fecha,x.dataset.aviso,x.dataset.orden,x.dataset.trabajo,x.dataset.encargado,x.dataset.turno].join('\t')).join('\n');
   try{
     await escribirPortapapeles(texto);
-    $('mensajeCopiaPlan').textContent=`✓ ${seleccion.length} trabajo${seleccion.length===1?'':'s'} copiado${seleccion.length===1?'':'s'}`;
-  }catch(e){console.error(e);$('mensajeCopiaPlan').textContent='No se pudo copiar. Intenta nuevamente.'}
+    seleccion.forEach(check=>check.checked=false);
+    actualizarSeleccionPlan();
+  }catch(e){console.error(e);alert('No se pudo copiar. Intenta nuevamente.')}
 }
 
 async function copiarTextoSAP(texto,tipo,elemento){
@@ -815,7 +825,7 @@ function buildPdfTablePlan(){
   const rows=[...document.querySelectorAll('#tablaPlan tbody tr')];
   let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody>';
   rows.slice(0,28).forEach(tr=>{
-    const t=[...tr.children].map(td=>td.innerText.trim());
+    const t=[...tr.children].slice(1).map(td=>td.innerText.trim());
     const estado=(t[6]||'Pendiente').toLowerCase();
     const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[6]}</span>`:`<span class="pdfBadgeBad">${t[6]||'Pendiente'}</span>`;
     html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td><td>${badge}</td></tr>`;

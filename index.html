@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard HH Mantención SAP v3.10.6 - Piscicultura Lago Verde</title>
+<title>Dashboard HH Mantención SAP v3.10.7 - Piscicultura Lago Verde</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=3.10.6">
+<link rel="stylesheet" href="styles.css?v=3.10.7">
 
 </head>
 <body>
@@ -33,7 +33,7 @@
       <button class="pdfbtn" onclick="abrirSelectorInforme()">📄 Informe PDF</button>
     </section>
 
-    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.10.6</b></div></section>
+    <section class="infoBar"><div><small>Unidad</small><b>Piscicultura Lago Verde</b></div><div><small>Período analizado</small><b id="periodoTxt2">01-08-2026 al 31-08-2026</b></div><div><small>Última actualización</small><b id="updateTxt">Sin cargar</b></div><div><small>Versión</small><b>v3.10.7</b></div></section>
 
     <section class="loadPanel" id="estadoDatosPanel">
       <div class="statusLine" id="estadoCarga">Cargando datos desde GitHub...</div>
@@ -59,12 +59,12 @@
       <select id="planSelector" class="hidden" aria-hidden="true" tabindex="-1" onchange="cambiarPlanSemanal()"><option value="">Cargando planes...</option></select>
       <div class="grid">
         <div class="card kpi col3"><div class="ico">📋</div><div><h3>OT Planificadas</h3><div class="val" id="planTotal">0</div><div class="sub">Del período seleccionado</div></div></div>
-        <div class="card kpi col3"><div class="ico">✅</div><div><h3>OT Notificadas</h3><div class="val" id="planNotif">0</div><div class="sub">Encontradas en SAP</div></div></div>
-        <div class="card kpi col3"><div class="ico">⏳</div><div><h3>OT Pendientes</h3><div class="val" id="planPend">0</div><div class="sub">Aún sin notificación</div></div></div>
+        <article id="cardPlanNotif" class="card kpi col3 planKpiFilter notificada" role="button" tabindex="0" aria-pressed="false" onclick="cambiarFiltroEstadoPlan('notificadas')" onkeydown="activarFiltroPlanTeclado(event,'notificadas')" title="Filtrar OT notificadas"><div class="ico">✅</div><div><h3>OT Notificadas</h3><div class="val" id="planNotif">0</div><div class="sub">Clic para filtrar</div></div></article>
+        <article id="cardPlanPend" class="card kpi col3 planKpiFilter pendiente" role="button" tabindex="0" aria-pressed="false" onclick="cambiarFiltroEstadoPlan('pendientes')" onkeydown="activarFiltroPlanTeclado(event,'pendientes')" title="Filtrar OT pendientes"><div class="ico">⏳</div><div><h3>OT Pendientes</h3><div class="val" id="planPend">0</div><div class="sub">Clic para filtrar</div></div></article>
         <div class="card kpi col3"><div class="ico">📈</div><div><h3>Cumplimiento plan</h3><div class="val" id="planPct">0%</div><div class="progress"><div class="bar" id="planBar"></div></div></div></div>
         <div class="card col6"><h2 class="sec">Cumplimiento del Plan de Mantención</h2><div class="chart sm"><canvas id="chartPlan"></canvas></div></div>
         <div class="card col6"><h2 class="sec">Cumplimiento por encargado</h2><div class="miniHelp">Selecciona un encargado para filtrar sus avisos. Vuelve a seleccionarlo para mostrar todos.</div><div id="encargadoFiltros" class="encargadoFiltros" aria-label="Filtrar avisos por encargado"></div><div class="chart sm"><canvas id="chartEnc"></canvas></div></div>
-        <div class="card col12"><h2 class="sec" id="tituloDetallePlan">Detalle del Plan del Período</h2><div class="planCopyTools"><button type="button" onclick="seleccionarPendientesPlan()">Seleccionar pendientes</button><button id="copiarPlanSeleccionado" type="button" class="primary" onclick="copiarSeleccionPlan()" disabled>Copiar seleccionados (0)</button><button type="button" onclick="limpiarSeleccionPlan()">Limpiar selección</button><span id="mensajeCopiaPlan" aria-live="polite"></span></div><div class="miniHelp planCopyHelp">Selecciona las filas que necesites. Al copiar, Aviso, Orden y Trabajo se pegarán en tres columnas de Excel.</div><div class="tableWrap"><table id="tablaPlan"><thead><tr><th>Fecha</th><th>N° aviso</th><th>N° orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th><th class="planSeleccionHead">Seleccionar</th></tr></thead><tbody></tbody></table></div></div>
+        <div class="card col12"><h2 class="sec" id="tituloDetallePlan">Detalle del Plan del Período</h2><div class="planCopyTools"><button id="copiarPlanSeleccionado" type="button" class="primary" onclick="copiarSeleccionPlan()" disabled>Copiar seleccionados (0)</button></div><div class="miniHelp planCopyHelp">Marca manualmente los trabajos que quieres planificar. Al copiar, Fecha, Aviso, Orden, Trabajo, Encargado y Turno se pegarán en seis columnas de Excel y la selección se limpiará automáticamente.</div><div class="tableWrap"><table id="tablaPlan"><thead><tr><th class="planSeleccionHead">Seleccionar</th><th>Fecha</th><th>N° aviso</th><th>N° orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody></tbody></table></div></div>
       </div>
     </section>
 
@@ -105,7 +105,7 @@
   </div>
 </div>
 <div id="printReport"></div>
-<script src="app.js?v=3.10.6"></script>
+<script src="app.js?v=3.10.7"></script>
 
 </body>
 </html>
