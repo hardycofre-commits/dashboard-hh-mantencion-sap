@@ -15,7 +15,8 @@ const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-22T083156.325.xlsx','EXPORT - 2026-07-23T144449.081.XLSX','EXPORT - 2026-07-24T114636.912.xlsx',
   'EXPORT - 2026-07-27T104903.863.xlsx','EXPORT - 2026-07-29T171504.804.xlsx','EXPORT - 2026-07-30T160251.425.xlsx',
   'EXPORT - 2026-08-03T112534.786.xlsx','sap.xlsx','plan_semanal.xlsx','semana27.xlsx','semana28.xlsx',
-  'Semana29.xlsx','Semana30.xlsx','Semana31.xlsx','Semana32.xlsx'
+  'Semana29.xlsx','Semana30.xlsx','Semana31.xlsx','Semana32.xlsx','Semana33.xlsx','Semana34.xlsx',
+  'EXPORT - 2026-08-17T101243.803.xlsx'
 ];
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
@@ -227,6 +228,28 @@ function aggregateSAPByOrden(rows){
 }
 function unique(a){return [...new Set(a.filter(Boolean))]}
 
+function esperar(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function fetchConReintentos(url,opciones={},intentos=4){
+  let ultimaRespuesta=null;
+  for(let intento=0;intento<intentos;intento++){
+    try{
+      const resp=await fetch(url,{cache:'default',...opciones});
+      ultimaRespuesta=resp;
+      if(resp.ok || ![429,502,503,504].includes(resp.status))return resp;
+      if(intento===intentos-1)return resp;
+      const retryAfter=Number(resp.headers.get('retry-after'));
+      const espera=Number.isFinite(retryAfter)&&retryAfter>0
+        ?retryAfter*1000
+        :1200*(2**intento)+Math.round(Math.random()*400);
+      await esperar(espera);
+    }catch(error){
+      if(intento===intentos-1)throw error;
+      await esperar(1200*(2**intento)+Math.round(Math.random()*400));
+    }
+  }
+  return ultimaRespuesta;
+}
+
 function mesesPeriodo(desde,hasta){
   if(!desde||!hasta)return 1;
   const d=new Date(desde+'T00:00:00');
@@ -237,7 +260,7 @@ function mesesPeriodo(desde,hasta){
 }
 async function listarArchivosDatos(){
   try{
-    const resp=await fetch(GITHUB_DATA_API+'&v='+Date.now(),{cache:'no-store'});
+    const resp=await fetchConReintentos(GITHUB_DATA_API,{cache:'no-cache'});
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     const files=await resp.json();
     return files.filter(f=>f.type==='file' && /\.xlsx$/i.test(f.name));
@@ -412,17 +435,28 @@ async function cambiarPlanSemanal(){
   const sel=$('planSelector');
   if(!sel||!sel.value||!githubArchivos.length)return;
   if(sel.value==='__periodo__'){
-    plan=Object.values(planesCargados).flat();
-    planArchivo='Planes consolidados del período';
-    render();
+    try{
+      $('estadoCarga').innerHTML='Cargando planes del período... <span class="gray pill">procesando</span>';
+      await cargarPlanesConsolidados(githubArchivos);
+      plan=Object.values(planesCargados).flat();
+      planArchivo='Planes consolidados del período';
+      ultimaCarga=new Date().toLocaleString('es-CL');
+      render();
+    }catch(e){
+      console.error(e);
+      $('estadoCarga').innerHTML=`No se pudieron consolidar los planes. <span class="bad pill">${e.message}</span>`;
+    }
     return;
   }
   const file=githubArchivos.find(f=>f.name===sel.value);
   if(!file)return;
   try{
     $('estadoCarga').innerHTML=`Cargando plan seleccionado <b>${file.name}</b>... <span class="gray pill">procesando</span>`;
-    planRows=await leerExcelGithub(file);
-    plan=mapPlan(planRows).map(p=>({...p,origen:file.name}));
+    if(!planesCargados[file.name]){
+      planRows=await leerExcelGithub(file);
+      planesCargados[file.name]=mapPlan(planRows).map(p=>({...p,origen:file.name}));
+    }
+    plan=planesCargados[file.name];
     planArchivo='datos/'+file.name;
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
@@ -433,20 +467,24 @@ async function cambiarPlanSemanal(){
 }
 async function cargarPlanesConsolidados(files){
   const candidatos=obtenerCandidatos(files,'plan');
-  const resultados=await Promise.allSettled(candidatos.map(async file=>{
-    const rows=await leerExcelGithub(file);
-    return [file.name,mapPlan(rows).map(p=>({...p,origen:file.name}))];
-  }));
-  planesCargados={};
-  resultados.forEach(r=>{if(r.status==='fulfilled')planesCargados[r.value[0]]=r.value[1]});
+  for(const file of candidatos){
+    if(planesCargados[file.name])continue;
+    try{
+      const rows=await leerExcelGithub(file);
+      planesCargados[file.name]=mapPlan(rows).map(p=>({...p,origen:file.name}));
+    }catch(error){
+      console.warn('No se pudo cargar el plan '+file.name,error);
+    }
+  }
   plan=Object.values(planesCargados).flat();
   planRows=[];
   planArchivo='Planes consolidados del período';
 }
 async function leerExcelGithub(file){
-  const base=(file.download_url || file);
-  const url=base+(base.includes('?')?'&':'?')+'v='+Date.now();
-  const resp=await fetch(url,{cache:'no-store'});
+  // Los archivos ya forman parte de la misma publicación del dashboard.
+  // Leerlos desde datos/ evita el límite HTTP 429 de raw.githubusercontent.com.
+  const base=file?.name ? 'datos/'+encodeURIComponent(file.name) : file;
+  const resp=await fetchConReintentos(base,{cache:'default'});
   if(!resp.ok)throw new Error('No se pudo leer '+(file.name||file)+' (HTTP '+resp.status+')');
   const buffer=await resp.arrayBuffer();
   return parseWB(buffer);
@@ -462,14 +500,18 @@ async function cargarDatosGithub(){
     const planFile=elegirArchivo(archivos,'plan');
     llenarSelectorPlanes(archivos, planFile.name);
     sapArchivo='datos/'+sapFile.name;
-    planArchivo='Planes consolidados del período';
+    planArchivo='datos/'+planFile.name;
     $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
     sapRows=await leerExcelGithub(sapFile);
     sap=mapSAP(sapRows);
     llenarSelectorAnios();
     const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
     if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);$('anioPeriodo').value=ultimaFecha.slice(0,4);aplicarPeriodoSeleccionado(false)}
-    await cargarPlanesConsolidados(archivos);
+    planRows=await leerExcelGithub(planFile);
+    planesCargados={
+      [planFile.name]:mapPlan(planRows).map(p=>({...p,origen:planFile.name}))
+    };
+    plan=planesCargados[planFile.name];
     seleccionarUltimoPlanDisponible(false,$('plan').classList.contains('active'));
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
