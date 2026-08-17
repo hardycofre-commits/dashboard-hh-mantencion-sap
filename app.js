@@ -107,7 +107,7 @@ function semanaIsoDesdeFecha(fecha){
   const semana=Math.ceil((((d-inicio)/86400000)+1)/7);
   return `${d.getUTCFullYear()}-W${String(semana).padStart(2,'0')}`;
 }
-function aplicarPeriodoSeleccionado(actualizar=true){
+async function aplicarPeriodoSeleccionado(actualizar=true){
   if($('tipoPeriodo').value==='semanal'){
     const rango=rangoSemanaIso($('semanaPeriodo').value);
     if(!rango)return;
@@ -126,8 +126,13 @@ function aplicarPeriodoSeleccionado(actualizar=true){
     $('hasta').value=`${mes}-${String(new Date(anio,numeroMes,0).getDate()).padStart(2,'0')}`;
   }
   const selectorPlan=$('planSelector');
-  if(selectorPlan && planesCargados && Object.keys(planesCargados).length){
+  if(selectorPlan && githubArchivos.length){
     selectorPlan.value='__periodo__';
+    if(actualizar){
+      $('estadoCarga').innerHTML='Cargando planes históricos del período... <span class="gray pill">procesando</span>';
+      await cargarPlanesConsolidados(githubArchivos);
+      ultimaCarga=new Date().toLocaleString('es-CL');
+    }
     plan=Object.values(planesCargados).flat();
     planArchivo='Planes consolidados del período';
   }
