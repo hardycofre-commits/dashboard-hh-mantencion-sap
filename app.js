@@ -46,7 +46,23 @@ function toNum(v){
   let n=parseFloat(s)||0;
   return neg?-Math.abs(n):n;
 }
-function excelDate(v){if(v instanceof Date)return v.toISOString().slice(0,10); if(typeof v==='number'&&v>30000){let d=XLSX.SSF.parse_date_code(v);return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`} let s=String(v||'').trim(); let m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/); if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; return s}
+function excelDate(v){
+  if(v instanceof Date)return v.toISOString().slice(0,10);
+  if(typeof v==='number'&&v>30000){let d=XLSX.SSF.parse_date_code(v);return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`}
+  let s=String(v||'').trim();
+  let m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // Algunos planes vienen con fechas de texto abreviadas (p. ej. "17-ago").
+  // Sin normalizarlas, el filtro ISO del período descarta todas las OT del plan.
+  m=norm(s).match(/^(\d{1,2})[\s\-\/.]+(ene|feb|mar|abr|may|jun|jul|ago|sep|sept|oct|nov|dic)(?:[\s\-\/.]+(\d{2,4}))?$/);
+  if(m){
+    const meses={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,sept:9,oct:10,nov:11,dic:12};
+    let anio=m[3]?Number(m[3]):Number(($('semanaPeriodo')?.value||$('desde')?.value||String(new Date().getFullYear())).slice(0,4));
+    if(anio<100)anio+=2000;
+    return `${anio}-${String(meses[m[2]]).padStart(2,'0')}-${String(Number(m[1])).padStart(2,'0')}`;
+  }
+  return s;
+}
 function showDate(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}-${m[2]}-${m[1]}`:s}
 function showMes(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})/); if(!m)return s; const names=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return names[Number(m[2])-1]+' '+m[1]}
 function periodoMesesLabel(desde,hasta){let a=(desde||'').slice(0,7), b=(hasta||'').slice(0,7); if(!a&&!b)return 'Sin período'; if(a===b)return showMes(a); return showMes(a)+' a '+showMes(b)}
