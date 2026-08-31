@@ -23,6 +23,14 @@ const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto
 const META_HH_MENSUAL=350;
 const $=id=>document.getElementById(id); const fmt=n=>Number(n||0).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1});
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+function normalizarEncargado(valor){
+  const original=String(valor??'').trim().replace(/\s+/g,' ');
+  if(!original)return '';
+  const clave=norm(original).replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+  if(/^asistente( de)? manten(cion|imiento)$/.test(clave))return 'Asistente de mantención';
+  if(/^rescue motors?$/.test(clave))return 'Rescue Motors';
+  return original;
+}
 function htmlSeguro(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function findCol(row,keys){const cols=Object.keys(row||{});return cols.find(c=>keys.some(k=>norm(c).includes(k)))||null}
 function toNum(v){
@@ -206,7 +214,7 @@ function mapSAP(rows){return rows.map(r=>{
   let notificada=!!ot || hh!==0 || /noti|notif|cnf|conf|cerr|final|iw41|real/i.test(est);
   return{ot,hh,clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha:excelDate(cFecha?r[cFecha]:''),trabajo:cTxt?r[cTxt]:'',resp:cResp?r[cResp]:'Sin responsable',estado:notificada?'Notificada':'Sin notificar'}
 }).filter(x=>x.ot)}
-function mapPlan(rows){return rows.map(r=>{let cF=findColExact(r,['Fecha']);let cA=findColExact(r,['Número de aviso','Numero de aviso','Aviso']);let cO=findColExact(r,['Número de orden','Numero de orden','Orden','OT']);let cT=findColExact(r,['Trabajo','Descripción','Descripcion']);let cE=findColExact(r,['Encargado','Responsable']);let cTu=findColExact(r,['Turno']);let ot=extractOT(cO?r[cO]:Object.values(r).join(' '));return{fecha:excelDate(cF?r[cF]:''),aviso:cA?r[cA]:'',ot,trabajo:cT?r[cT]:'',encargado:cE?r[cE]:'',turno:cTu?r[cTu]:'',estado:'Pendiente'}}).filter(x=>x.ot)}
+function mapPlan(rows){return rows.map(r=>{let cF=findColExact(r,['Fecha']);let cA=findColExact(r,['Número de aviso','Numero de aviso','Aviso']);let cO=findColExact(r,['Número de orden','Numero de orden','Orden','OT']);let cT=findColExact(r,['Trabajo','Descripción','Descripcion']);let cE=findColExact(r,['Encargado','Responsable']);let cTu=findColExact(r,['Turno']);let ot=extractOT(cO?r[cO]:Object.values(r).join(' '));return{fecha:excelDate(cF?r[cF]:''),aviso:cA?r[cA]:'',ot,trabajo:cT?r[cT]:'',encargado:normalizarEncargado(cE?r[cE]:''),turno:cTu?r[cTu]:'',estado:'Pendiente'}}).filter(x=>x.ot)}
 function destroy(id){if(charts[id])charts[id].destroy()}
 function chart(id,type,labels,data,label,colors){
   destroy(id);
