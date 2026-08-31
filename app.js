@@ -379,6 +379,7 @@ function llenarSelectorPlanes(files, seleccionado){
 }
 function filtrarAvisosPorEncargado(encargado){
   encargadoPlanFiltrado=encargadoPlanFiltrado===encargado?'':encargado;
+  estadoPlanFiltrado='';
   aplicarFiltroEncargado();
 }
 function cambiarFiltroEstadoPlan(estado){
@@ -388,17 +389,33 @@ function cambiarFiltroEstadoPlan(estado){
 function activarFiltroPlanTeclado(evento,estado){
   if(evento.key==='Enter'||evento.key===' '){evento.preventDefault();cambiarFiltroEstadoPlan(estado)}
 }
+function actualizarResumenPlanFiltrado(filasGrupo){
+  const total=filasGrupo.length;
+  const notificadas=filasGrupo.filter(tr=>(tr.children[7]?.textContent.trim()||'')==='Notificada').length;
+  const pendientes=total-notificadas;
+  const cumplimiento=total?Math.round(notificadas/total*100):0;
+  $('planTotal').textContent=total;
+  $('planNotif').textContent=notificadas;
+  $('planPend').textContent=pendientes;
+  $('planPct').textContent=cumplimiento+'%';
+  $('planBar').style.width=cumplimiento+'%';
+}
 function aplicarFiltroEncargado(){
-  document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>{
+  const filas=[...document.querySelectorAll('#tablaPlan tbody tr')];
+  const filasGrupo=filas.filter(tr=>!encargadoPlanFiltrado||tr.children[5]?.textContent.trim()===encargadoPlanFiltrado);
+  let totalVisible=0;
+  filas.forEach(tr=>{
     const encargado=tr.children[5]?.textContent.trim(),estado=tr.children[7]?.textContent.trim()||'';
     const coincideEncargado=!encargadoPlanFiltrado||encargado===encargadoPlanFiltrado;
     const coincideEstado=!estadoPlanFiltrado||(estadoPlanFiltrado==='notificadas'?estado==='Notificada':estado!=='Notificada');
     const coincide=coincideEncargado&&coincideEstado;
+    if(coincide)totalVisible++;
     tr.classList.toggle('hidden',!coincide);
     if(!coincide){const check=tr.querySelector('.planFilaCheck');if(check)check.checked=false}
   });
+  actualizarResumenPlanFiltrado(filasGrupo);
   const titulo=$('tituloDetallePlan');
-  if(titulo){const estadoTexto=estadoPlanFiltrado==='notificadas'?'OT Notificadas':estadoPlanFiltrado==='pendientes'?'OT Pendientes':'';titulo.textContent=[estadoTexto,encargadoPlanFiltrado?`de ${encargadoPlanFiltrado}`:''].filter(Boolean).join(' ')||'Detalle del Plan del Período'}
+  if(titulo){const estadoTexto=estadoPlanFiltrado==='notificadas'?'OT Notificadas':estadoPlanFiltrado==='pendientes'?'OT Pendientes':'Detalle del Plan del Período';titulo.textContent=[estadoTexto,encargadoPlanFiltrado?`de ${encargadoPlanFiltrado}`:'',`(${totalVisible} avisos)`].filter(Boolean).join(' ')}
   document.querySelectorAll('.planKpiFilter').forEach(card=>{const activo=card.id===(estadoPlanFiltrado==='notificadas'?'cardPlanNotif':estadoPlanFiltrado==='pendientes'?'cardPlanPend':'');card.classList.toggle('active',activo);card.setAttribute('aria-pressed',String(activo))});
   document.querySelectorAll('#encargadoFiltros button').forEach(btn=>{
     const activo=btn.dataset.encargado===encargadoPlanFiltrado;
@@ -892,16 +909,15 @@ async function capturarGraficosInforme(){
   });
   return images;
 }
-function buildPdfTablePlan(){
-  const rows=[...document.querySelectorAll('#tablaPlan tbody tr')];
+function buildPdfTablePlan(rows){
   let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody>';
-  rows.slice(0,28).forEach(tr=>{
+  rows.forEach(tr=>{
     const t=[...tr.children].slice(1).map(td=>td.innerText.trim());
     const estado=(t[6]||'Pendiente').toLowerCase();
     const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[6]}</span>`:`<span class="pdfBadgeBad">${t[6]||'Pendiente'}</span>`;
     html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td><td>${badge}</td></tr>`;
   });
-  if(rows.length>28){html+=`<tr><td colspan="7">Se muestran las primeras 28 OT de ${rows.length}. El detalle completo permanece disponible en el dashboard.</td></tr>`}
+  if(!rows.length)html+='<tr><td colspan="7">No hay avisos para los filtros seleccionados.</td></tr>';
   html+='</tbody></table>'; return html;
 }
 function buildPdfTableDia(rows=[...document.querySelectorAll('#tablaDia tbody tr')]){
@@ -946,6 +962,16 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
     <div class="pdfBox"><h3>Detalle diario de HH y cumplimiento</h3>${buildPdfTableDia(filas)}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span></span></div>
   </section>`).join('');
+  const filasPlan=[...document.querySelectorAll('#tablaPlan tbody tr')].filter(tr=>!tr.classList.contains('hidden'));
+  const bloquesPlan=[];
+  if(!filasPlan.length)bloquesPlan.push([]);else for(let i=0;i<filasPlan.length;i+=28)bloquesPlan.push(filasPlan.slice(i,i+28));
+  const contextoPlan=encargadoPlanFiltrado?` - ${htmlSeguro(encargadoPlanFiltrado)}`:'';
+  const paginasPlanDetalle=bloquesPlan.map((filas,i)=>`
+  <section class="pdfPage pdfPagePlan" data-seccion="plan" style="position:relative">
+    <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Detalle Plan Semanal${contextoPlan}${bloquesPlan.length>1?` - Parte ${i+1} de ${bloquesPlan.length}`:''}</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
+    <div class="pdfBox"><h3>Listado completo (${filasPlan.length} avisos)</h3>${buildPdfTablePlan(filas)}</div>
+    <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span></span></div>
+  </section>`).join('');
   const rep=$('printReport');
   rep.innerHTML=`
   <section class="pdfPage pdfPageResumen" data-seccion="resumen" style="position:relative">
@@ -966,9 +992,9 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
     </div>
     <div class="pdfGrid2"><div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart',chartImages)}</div></div>
     <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>
-    <div class="pdfBox"><h3>Detalle Plan Semanal</h3>${buildPdfTablePlan()}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span>Página 3 de 3</span></div>
-  </section>`;
+  </section>
+  ${paginasPlanDetalle}`;
   rep.querySelectorAll('.pdfPage').forEach(p=>{if(!secciones.includes(p.dataset.seccion))p.remove()});
   const paginas=[...rep.querySelectorAll('.pdfPage')];
   paginas.forEach((p,i)=>{const numero=p.querySelector('.pdfFooter span:last-child');if(numero)numero.textContent=`Página ${i+1} de ${paginas.length}`});
