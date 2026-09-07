@@ -43,6 +43,12 @@ datos/
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
 
+## Cambios v3.10.15
+
+- Abre automáticamente el mes calendario en curso al iniciar el dashboard.
+- Usa un índice alternativo para encontrar el último export SAP cuando la API pública de GitHub está limitada.
+- Actualiza el respaldo hasta el export del 7 de septiembre de 2026 para que las HH de septiembre se carguen inmediatamente.
+
 ## Cambios v3.10.14
 
 - Corrige la ruta de `Semana28.xlsx` respetando mayúsculas y minúsculas en GitHub Pages.

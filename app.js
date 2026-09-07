@@ -5,7 +5,7 @@ let encargadoPlanFiltrado='';
 let estadoPlanFiltrado='';
 let estadoEdicionOriginal={estado:'Pendiente',inicio:'',termino:''},edicionEstadoAutorizada=false;
 const CLAVE_EDICION_ESTADO='m4nt3nc10n';
-const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`;
+const GITHUB_OWNER="hardycofre-commits", GITHUB_REPO="dashboard-hh-mantencion-sap", GITHUB_BRANCH="main", GITHUB_DATA_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/datos?ref=${GITHUB_BRANCH}`, GITHUB_COMMITS_API=`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits`, JSDELIVR_DATA_API=`https://data.jsdelivr.com/v1/package/gh/${GITHUB_OWNER}/${GITHUB_REPO}@${GITHUB_BRANCH}/flat`;
 const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-03T090738.938.xlsx','EXPORT - 2026-07-03T102715.587.xlsx',
   'EXPORT - 2026-07-06T094609.530.xlsx','EXPORT - 2026-07-06T144233.767.xlsx','EXPORT - 2026-07-06T145430.956.xlsx',
@@ -16,7 +16,10 @@ const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-27T104903.863.xlsx','EXPORT - 2026-07-29T171504.804.xlsx','EXPORT - 2026-07-30T160251.425.xlsx',
   'EXPORT - 2026-08-03T112534.786.xlsx','sap.xlsx','plan_semanal.xlsx','Semana27.xlsx','Semana28.xlsx',
   'Semana29.xlsx','Semana30.xlsx','Semana31.xlsx','Semana32.xlsx','Semana33.xlsx','Semana34.xlsx','Semana35.xlsx','Semana36.xlsx',
-  'EXPORT - 2026-08-17T101243.803.xlsx'
+  'EXPORT - 2026-08-17T101243.803.xlsx','EXPORT - 2026-08-19T094226.889.xlsx','EXPORT - 2026-08-20T140003.088.xlsx',
+  'EXPORT - 2026-08-21T141850.812.xlsx','EXPORT - 2026-08-24T101455.897.XLSX','EXPORT - 2026-08-28T080447.610.xlsx',
+  'EXPORT - 2026-08-28T160656.965.xlsx','EXPORT - 2026-08-31T151113.634.xlsx','EXPORT - 2026-09-01T082433.896.xlsx',
+  'EXPORT - 2026-09-02T081153.318.XLSX','EXPORT - 2026-09-03T081150.794.xlsx','EXPORT - 2026-09-07T084416.545.XLSX'
 ];
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
@@ -294,12 +297,23 @@ async function listarArchivosDatos(){
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     files=(await resp.json()).filter(f=>f.type==='file' && /\.xlsx$/i.test(f.name));
   }catch(e){
-    console.warn('API de GitHub no disponible; se usará la lista de respaldo.',e);
-    files=FALLBACK_DATA_FILES.map(name=>({
-      name,
-      type:'file',
-      download_url:'datos/'+encodeURIComponent(name)
-    }));
+    console.warn('API de GitHub no disponible; se consultará el índice alternativo.',e);
+    try{
+      const resp=await fetchConReintentos(JSDELIVR_DATA_API,{cache:'no-cache'});
+      if(!resp.ok)throw new Error('HTTP '+resp.status);
+      const data=await resp.json();
+      files=(data.files||[])
+        .filter(f=>/^\/datos\/[^/]+\.xlsx$/i.test(f.name))
+        .map(f=>({name:f.name.split('/').pop(),type:'file',download_url:'datos/'+encodeURIComponent(f.name.split('/').pop())}));
+      if(!files.length)throw new Error('El índice alternativo no devolvió archivos Excel.');
+    }catch(alternativo){
+      console.warn('Índice alternativo no disponible; se usará la lista de respaldo.',alternativo);
+      files=FALLBACK_DATA_FILES.map(name=>({
+        name,
+        type:'file',
+        download_url:'datos/'+encodeURIComponent(name)
+      }));
+    }
   }
   // GitHub puede limitar su API pública. Verificar los planes predecibles en la
   // misma publicación permite incorporar SemanaNN.xlsx sin editar app.js cada semana.
@@ -567,8 +581,16 @@ async function cargarDatosGithub(){
     sapRows=await leerExcelGithub(sapFile);
     sap=mapSAP(sapRows);
     llenarSelectorAnios();
-    const ultimaFecha=sap.map(x=>x.fecha).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort().pop();
-    if(ultimaFecha){$('mesPeriodo').value=ultimaFecha.slice(0,7);$('anioPeriodo').value=ultimaFecha.slice(0,4);aplicarPeriodoSeleccionado(false)}
+    const hoy=new Date();
+    const mesActual=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+    $('tipoPeriodo').value='mensual';
+    $('mesPeriodo').value=mesActual;
+    $('anioPeriodo').value=String(hoy.getFullYear());
+    $('controlSemana').classList.add('hidden');
+    $('controlMes').classList.remove('hidden');
+    $('controlAnio').classList.add('hidden');
+    document.querySelectorAll('.periodSwitch [data-periodo]').forEach(btn=>btn.classList.toggle('active',btn.dataset.periodo==='mensual'));
+    aplicarPeriodoSeleccionado(false);
     planRows=await leerExcelGithub(planFile);
     planesCargados={
       [planFile.name]:mapPlan(planRows).map(p=>({...p,origen:planFile.name}))
