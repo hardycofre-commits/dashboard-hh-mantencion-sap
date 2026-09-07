@@ -43,6 +43,12 @@ datos/
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
 
+## Cambios v3.10.17
+
+- El modo semanal usa una meta total fija de 87,5 HH.
+- La meta diaria se mantiene en 11,7 HH, calculada como 350 HH mensuales dividido por 30 días.
+- Los modos mensual y anual conservan su cálculo anterior.
+
 ## Cambios v3.10.16
 
 - Corrige el identificador de caché del script principal, que todavía apuntaba a v3.10.13.
