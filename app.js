@@ -78,6 +78,15 @@ function excelDate(v){
 function showDate(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}-${m[2]}-${m[1]}`:s}
 function showMes(s){if(!s)return''; let m=String(s).match(/(\d{4})-(\d{2})/); if(!m)return s; const names=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return names[Number(m[2])-1]+' '+m[1]}
 function periodoMesesLabel(desde,hasta){let a=(desde||'').slice(0,7), b=(hasta||'').slice(0,7); if(!a&&!b)return 'Sin período'; if(a===b)return showMes(a); return showMes(a)+' a '+showMes(b)}
+function periodoSeleccionadoLabel(desde,hasta){
+  const tipo=$('tipoPeriodo').value;
+  if(tipo==='semanal'){
+    const m=String($('semanaPeriodo').value||'').match(/^(\d{4})-W(\d{2})$/);
+    return m?`Semana ${Number(m[2])}, ${m[1]}`:`Semana del ${showDate(desde)} al ${showDate(hasta)}`;
+  }
+  if(tipo==='anual')return $('anioPeriodo').value||String(desde||'').slice(0,4);
+  return showMes($('mesPeriodo').value||String(desde||'').slice(0,7));
+}
 function llenarSelectorAnios(){
   const anios=unique(sap.map(x=>(x.fecha||'').slice(0,4)).filter(x=>/^\d{4}$/.test(x))).sort().reverse();
   const sel=$('anioPeriodo'),actual=sel.value;
@@ -611,11 +620,19 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let sapCalc=aggregateSAPByOrden(sapF);
  let hh=sapCalc.reduce((a,b)=>a+b.hh,0); let ot=unique(sapCalc.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title=esSemanal?'Meta semanal '+fmt(META_HH_SEMANAL):'Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
  let dias={};sapCalc.forEach(x=>{let f=x.fecha||'Sin fecha'; if(!dias[f])dias[f]={hh:0,ots:new Set()};dias[f].hh+=x.hh;dias[f].ots.add(x.ot)});let labels=Object.keys(dias).sort();let metaDia=metaMensual/30;
- let periodoMes=periodoMesesLabel(desde,hasta);
- if($('tituloChartMes'))$('tituloChartMes').textContent='HH Real vs Meta HH - '+periodoMes;
- if($('tituloChartTipo'))$('tituloChartTipo').firstChild.textContent='Órdenes por tipo de mantenimiento - '+periodoMes;
- if($('tituloChartAcum'))$('tituloChartAcum').textContent='Cumplimiento acumulado del período - '+periodoMes;
- let mesesGraf={};sapCalc.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha'; if(!mesesGraf[k])mesesGraf[k]={hh:0};mesesGraf[k].hh+=x.hh});let labelsMes=Object.keys(mesesGraf).sort();destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsMes.map(showMes),datasets:[{label:'HH Real',data:labelsMes.map(f=>mesesGraf[f].hh),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:labelsMes.map(()=>metaMensual),borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
+ let periodoLabel=periodoSeleccionadoLabel(desde,hasta);
+ if($('tituloChartMes'))$('tituloChartMes').textContent='HH Real vs Meta HH - '+periodoLabel;
+ if($('tituloChartTipo'))$('tituloChartTipo').firstChild.textContent='Órdenes por tipo de mantenimiento - '+periodoLabel;
+ if($('tituloChartAcum'))$('tituloChartAcum').textContent='Cumplimiento acumulado del período - '+periodoLabel;
+ let graficoPeriodo={};
+ if($('tipoPeriodo').value==='anual'){
+   sapCalc.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha';if(!graficoPeriodo[k])graficoPeriodo[k]=0;graficoPeriodo[k]+=x.hh});
+ }else{
+   graficoPeriodo[periodoLabel]=hh;
+ }
+ let labelsPeriodo=Object.keys(graficoPeriodo).sort();
+ let metasPeriodo=labelsPeriodo.map(()=>$('tipoPeriodo').value==='anual'?metaMensual:meta);
+ destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsPeriodo.map(x=>/^\d{4}-\d{2}$/.test(x)?showMes(x):x),datasets:[{label:'HH Real',data:labelsPeriodo.map(f=>graficoPeriodo[f]),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:metasPeriodo,borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
  let claseRaw=group(sapCalc,'clase','hh');let ordenClases=['ZM01','ZM02','ZM05'];let claseLabels=[],claseData=[],claseColors=[];ordenClases.concat(Object.keys(claseRaw).filter(k=>!ordenClases.includes(k))).forEach(k=>{if(claseRaw[k]){claseLabels.push(CLASS_INFO[k]?`${k} - ${CLASS_INFO[k]}`:k);claseData.push(claseRaw[k]);claseColors.push(k==='ZM01'?COLORS.sky:k==='ZM02'?COLORS.pink:k==='ZM05'?COLORS.orange:COLORS.gray)}});chart('chartTipo','pie',claseLabels,claseData,'HH',claseColors);let acumHH=[],acumMeta=[],a=0,m=0;labels.forEach(f=>{a+=dias[f].hh;m+=metaDia;acumHH.push(a);acumMeta.push(m)});destroy('chartAcum');charts.chartAcum=new Chart($('chartAcum'),{type:'line',data:{labels:labels.map(showDate),datasets:[{label:'HH Real acumulado',data:acumHH,borderColor:COLORS.blue,backgroundColor:COLORS.blue,borderWidth:3,borderDash:[],pointRadius:0,pointHoverRadius:4,spanGaps:true,tension:.25},{label:'Meta HH acumulada',data:acumMeta,borderColor:COLORS.green,backgroundColor:COLORS.green,borderWidth:3,borderDash:[],pointRadius:0,pointHoverRadius:4,spanGaps:true,tension:.25}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}});
  let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true});
  let planPeriodo=plan.filter(p=>p.fecha && (!desde||p.fecha>=desde) && (!hasta||p.fecha<=hasta));

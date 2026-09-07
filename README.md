@@ -43,6 +43,13 @@ datos/
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
 
+## Cambios v3.10.18
+
+- Todos los gráficos usan el período seleccionado: semanal, mensual o anual.
+- En modo semanal, el gráfico principal compara únicamente la semana elegida contra 87,5 HH.
+- Los títulos indican la semana seleccionada en vez de mostrar los meses que atraviesa esa semana.
+- En modo mensual se muestra solo el mes consultado; en modo anual se mantiene el desglose mensual.
+
 ## Cambios v3.10.17
 
 - El modo semanal usa una meta total fija de 87,5 HH.
