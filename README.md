@@ -43,6 +43,12 @@ datos/
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
 
+## Cambios v3.10.16
+
+- Corrige el identificador de caché del script principal, que todavía apuntaba a v3.10.13.
+- Fuerza una lectura fresca del último Excel para evitar reutilizar exports guardados por el navegador.
+- Verificado con el export del 7 de septiembre: 968 registros totales y 4,0 HH correspondientes a septiembre.
+
 ## Cambios v3.10.15
 
 - Abre automáticamente el mes calendario en curso al iniciar el dashboard.

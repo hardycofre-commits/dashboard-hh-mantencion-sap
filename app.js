@@ -560,7 +560,8 @@ async function leerExcelGithub(file){
   // Los archivos ya forman parte de la misma publicación del dashboard.
   // Leerlos desde datos/ evita el límite HTTP 429 de raw.githubusercontent.com.
   const base=file?.name ? 'datos/'+encodeURIComponent(file.name) : file;
-  const resp=await fetchConReintentos(base,{cache:'default'});
+  const separador=String(base).includes('?')?'&':'?';
+  const resp=await fetchConReintentos(base+separador+'v='+Date.now(),{cache:'no-store'});
   if(!resp.ok)throw new Error('No se pudo leer '+(file.name||file)+' (HTTP '+resp.status+')');
   const buffer=await resp.arrayBuffer();
   return parseWB(buffer);
