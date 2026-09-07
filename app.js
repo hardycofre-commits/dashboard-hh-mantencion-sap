@@ -14,8 +14,8 @@ const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-07-15T170932.723.xlsx','EXPORT - 2026-07-20T070443.584.xlsx','EXPORT - 2026-07-21T133102.836.xlsx',
   'EXPORT - 2026-07-22T083156.325.xlsx','EXPORT - 2026-07-23T144449.081.XLSX','EXPORT - 2026-07-24T114636.912.xlsx',
   'EXPORT - 2026-07-27T104903.863.xlsx','EXPORT - 2026-07-29T171504.804.xlsx','EXPORT - 2026-07-30T160251.425.xlsx',
-  'EXPORT - 2026-08-03T112534.786.xlsx','sap.xlsx','plan_semanal.xlsx','semana27.xlsx','semana28.xlsx',
-  'Semana29.xlsx','Semana30.xlsx','Semana31.xlsx','Semana32.xlsx','Semana33.xlsx','Semana34.xlsx',
+  'EXPORT - 2026-08-03T112534.786.xlsx','sap.xlsx','plan_semanal.xlsx','Semana27.xlsx','Semana28.xlsx',
+  'Semana29.xlsx','Semana30.xlsx','Semana31.xlsx','Semana32.xlsx','Semana33.xlsx','Semana34.xlsx','Semana35.xlsx','Semana36.xlsx',
   'EXPORT - 2026-08-17T101243.803.xlsx'
 ];
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
@@ -288,19 +288,35 @@ function mesesPeriodo(desde,hasta){
   return (b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())+1;
 }
 async function listarArchivosDatos(){
+  let files=[];
   try{
     const resp=await fetchConReintentos(GITHUB_DATA_API,{cache:'no-cache'});
     if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const files=await resp.json();
-    return files.filter(f=>f.type==='file' && /\.xlsx$/i.test(f.name));
+    files=(await resp.json()).filter(f=>f.type==='file' && /\.xlsx$/i.test(f.name));
   }catch(e){
     console.warn('API de GitHub no disponible; se usará la lista de respaldo.',e);
-    return FALLBACK_DATA_FILES.map(name=>({
+    files=FALLBACK_DATA_FILES.map(name=>({
       name,
       type:'file',
       download_url:'datos/'+encodeURIComponent(name)
     }));
   }
+  // GitHub puede limitar su API pública. Verificar los planes predecibles en la
+  // misma publicación permite incorporar SemanaNN.xlsx sin editar app.js cada semana.
+  const anio=Number(($('semanaPeriodo')?.value||String(new Date().getFullYear())).slice(0,4))||new Date().getFullYear();
+  const semanaActual=Number((semanaIsoDesdeFecha(`${anio}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`).match(/W(\d{2})$/)||[])[1])||53;
+  const existentes=new Set(files.map(f=>f.name.toLowerCase()));
+  const sondeos=[];
+  for(let semana=1;semana<=Math.min(53,semanaActual+1);semana++){
+    const name=`Semana${semana}.xlsx`;
+    if(existentes.has(name.toLowerCase()))continue;
+    sondeos.push(fetch('datos/'+encodeURIComponent(name),{method:'HEAD',cache:'no-cache'})
+      .then(resp=>resp.ok?{name,type:'file',download_url:'datos/'+encodeURIComponent(name)}:null)
+      .catch(()=>null));
+  }
+  const descubiertos=(await Promise.all(sondeos)).filter(Boolean);
+  descubiertos.forEach(file=>{if(!existentes.has(file.name.toLowerCase()))files.push(file)});
+  return files;
 }
 function scoreFechaNombre(nombre){
   const n=nombre.replace(/_/g,' ');

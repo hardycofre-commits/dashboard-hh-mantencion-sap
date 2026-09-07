@@ -43,6 +43,12 @@ datos/
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
 
+## Cambios v3.10.14
+
+- Corrige la ruta de `Semana28.xlsx` respetando mayúsculas y minúsculas en GitHub Pages.
+- Incorpora `Semana35.xlsx` y `Semana36.xlsx` a la lista de respaldo.
+- Detecta automáticamente nuevos archivos `SemanaNN.xlsx` publicados, incluso cuando la API pública de GitHub está temporalmente limitada.
+
 ## Cambios v3.9.2
 
 - Copia con un clic los números de Aviso y Orden del Plan Semanal.
