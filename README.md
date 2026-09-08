@@ -43,6 +43,12 @@ datos/
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
 
+## Cambios v3.10.19
+
+- Agrega la columna `Operación` después de `N° orden` en el detalle del plan para los archivos desde Semana 37 en adelante.
+- Incluye `Operación` al copiar filas seleccionadas y al exportar CSV.
+- Mantiene compatibles los planes anteriores que no contienen esa columna.
+
 ## Cambios v3.10.18
 
 - Todos los gráficos usan el período seleccionado: semanal, mensual o anual.
