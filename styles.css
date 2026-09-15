@@ -17,7 +17,7 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 .reportOption small{color:#64748b;font-weight:400}
 .reportModalActions{display:flex;justify-content:flex-end;gap:9px;margin-top:17px}
 .reportCancel{border:1px solid #c8d5e6;background:white;color:#38506f;border-radius:7px;padding:11px 15px;font-weight:800;cursor:pointer}
-.periodFilters{grid-template-columns:190px 280px 220px 1fr 150px;margin-top:12px}
+.periodFilters{grid-template-columns:280px 220px 1fr 150px;margin-top:12px}
 .periodSwitch{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:8px;background:#e9f0f9}
 .periodSwitch button{border:0;border-radius:6px;padding:9px 8px;background:transparent;color:#07316c;font-weight:900;cursor:pointer}
 .periodSwitch button.active{background:#0a6ee8;color:white;box-shadow:0 2px 7px rgba(10,110,232,.22)}
@@ -92,6 +92,7 @@ button.pdfbtn{background:#0a6ee8;color:white;border:0;border-radius:7px;padding:
 .planCopyHelp{margin:0 0 9px}
 .planSeleccion,.planSeleccionHead{text-align:center;width:86px}
 .planSeleccion .planFilaCheck{width:19px;height:19px;margin:0;cursor:pointer;accent-color:#0a6ee8}
+.planEstado{text-align:center;min-width:112px;white-space:nowrap}
 .planKpiFilter{cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .18s,background .18s}
 .planKpiFilter:hover{border-color:#0a6ee8;box-shadow:0 6px 16px rgba(8,47,102,.15);transform:translateY(-1px)}
 .planKpiFilter:focus-visible{outline:3px solid rgba(10,110,232,.25);outline-offset:2px}

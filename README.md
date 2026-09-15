@@ -2,11 +2,11 @@
 
 **Piscicultura Lago Verde**
 
-## Línea de tiempo de datos (v3.11.0)
+## Línea de tiempo de datos (v3.11.4)
 
 - **Hasta la Semana 37 de 2026:** se conserva el sistema histórico actual, incluidos los Excel `SemanaXX.xlsx`, las HH netas históricas y los estados de terreno consolidados mediante Google Sheets.
 - **Desde la Semana 38 de 2026:** se usa el nuevo export SAP. La fecha de corte es el lunes **14-09-2026** y está centralizada en `FECHA_CORTE_SEMANA_38_2026`.
-- Un archivo SAP anual no reemplaza los datos anteriores al corte. Sus filas anteriores al 14-09-2026 se ignoran en el sistema nuevo.
+- Cuando el export anual trae `Fecha de fin de ejecución real`, este archivo pasa a ser la fuente completa del resumen de HH. El corte del 14-09-2026 se mantiene para separar el Plan Semanal histórico del nuevo.
 - Las consultas Semana, Mes y Año combinan ambas fuentes cuando el período cruza el corte.
 
 ## Nuevo export SAP
@@ -14,7 +14,9 @@
 El archivo se detecta automáticamente entre los Excel de `datos/`. Sus encabezados se reconocen por nombre normalizado y no por posición. Columnas requeridas:
 
 - `Inic.extr.` o `Fecha de inicio extrema`: fecha principal de planificación.
+- `Fecha de fin de ejecución real`: fecha usada para imputar las HH y las órdenes ejecutadas al resumen semanal, mensual o anual.
 - `Aviso` y `Orden`.
+- `Texto breve`: descripción breve asociada a la orden.
 - `Op.` u `Operación`.
 - `Texto breve operación`: descripción principal del trabajo.
 - `Pto.tbjo.op.` o `Pto.tbjo.operación`: puesto de trabajo conservado en el modelo. Para esta etapa corresponde al responsable único **Asistente de mantención**.
@@ -22,6 +24,27 @@ El archivo se detecta automáticamente entre los Excel de `datos/`. Sus encabeza
 - `Trabajo real`: HH reales directas; por ejemplo, `1,500` se interpreta como `1.5`.
 
 Desde el corte, cada registro se identifica por **Orden + Operación**. No se elimina una operación por tener cero HH y no se descartan fechas futuras.
+
+## Cambios v3.11.1
+
+- Se incorpora `Texto breve` de la orden en el detalle del Plan Semanal.
+- El texto breve de la orden también se incluye al copiar filas, exportar CSV y generar el detalle PDF.
+
+## Cambios v3.11.2
+
+- Al abrir Plan Semanal, el filtro cambia automáticamente a la semana ISO vigente; avanzará a las semanas 39, 40 y siguientes según la fecha del sistema.
+- Se centra y estabiliza el ancho de la columna Estado para alinear el encabezado con sus etiquetas.
+
+## Cambios v3.11.3
+
+- Se elimina del filtro superior la etiqueta redundante `META HH MENSUAL`; la meta sigue funcionando internamente y se mantiene visible en los indicadores del dashboard.
+
+## Cambios v3.11.4
+
+- Se separa la fecha de planificación de la fecha real de finalización.
+- El Plan Semanal, los estados vencidos y los estados notificados continúan controlándose desde la fecha planificada y el status SAP.
+- Las HH, las órdenes ejecutadas, el resumen diario y los gráficos se contabilizan en la `Fecha de fin de ejecución real`.
+- Las operaciones sin fecha real de finalización no se suman al resumen de ejecución.
 
 ## Estados desde Semana 38
 

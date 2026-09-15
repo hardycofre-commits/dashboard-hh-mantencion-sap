@@ -20,7 +20,7 @@ const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-08-21T141850.812.xlsx','EXPORT - 2026-08-24T101455.897.XLSX','EXPORT - 2026-08-28T080447.610.xlsx',
   'EXPORT - 2026-08-28T160656.965.xlsx','EXPORT - 2026-08-31T151113.634.xlsx','EXPORT - 2026-09-01T082433.896.xlsx',
   'EXPORT - 2026-09-02T081153.318.XLSX','EXPORT - 2026-09-03T081150.794.xlsx','EXPORT - 2026-09-07T084416.545.XLSX'
-  ,'EXPORT - 2026-09-15T112255.007.xlsx'
+  ,'EXPORT - 2026-09-15T112255.007.xlsx','EXPORT - 2026-09-15T123100.377.xlsx'
 ];
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
@@ -132,6 +132,26 @@ function semanaIsoDesdeFecha(fecha){
   const semana=Math.ceil((((d-inicio)/86400000)+1)/7);
   return `${d.getUTCFullYear()}-W${String(semana).padStart(2,'0')}`;
 }
+function activarSemanaActual(actualizar=true){
+  const semana=semanaIsoDesdeFecha(fechaHoyLocal());
+  const rango=rangoSemanaIso(semana);
+  if(!semana||!rango)return;
+  $('tipoPeriodo').value='semanal';
+  $('semanaPeriodo').value=semana;
+  $('controlSemana').classList.remove('hidden');
+  $('controlMes').classList.add('hidden');
+  $('controlAnio').classList.add('hidden');
+  document.querySelectorAll('.periodSwitch [data-periodo]').forEach(btn=>btn.classList.toggle('active',btn.dataset.periodo==='semanal'));
+  $('desde').value=rango.desde;
+  $('hasta').value=rango.hasta;
+  const selectorPlan=$('planSelector');
+  if(selectorPlan)selectorPlan.value='__periodo__';
+  if(Object.keys(planesCargados).length){
+    plan=Object.values(planesCargados).flat();
+    planArchivo='Planes consolidados del período';
+  }
+  if(actualizar)render();
+}
 async function aplicarPeriodoSeleccionado(actualizar=true){
   if($('tipoPeriodo').value==='semanal'){
     const rango=rangoSemanaIso($('semanaPeriodo').value);
@@ -236,7 +256,7 @@ function mapSAPHistorico(rows){return rows.map(r=>{
   let hh=toNum(cHH?r[cHH]:0);
   let est=String(cEstado?r[cEstado]:'');
   let notificada=!!ot || hh!==0 || /noti|notif|cnf|conf|cerr|final|iw41|real/i.test(est);
-  return{ot,operacion:'',aviso:'',hh,clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha:excelDate(cFecha?r[cFecha]:''),trabajo:cTxt?r[cTxt]:'',puesto:'',resp:cResp?r[cResp]:'Sin responsable',estado:notificada?'Notificada':'Sin notificar',sistema:'historico'}
+  return{ot,operacion:'',aviso:'',hh,clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha:excelDate(cFecha?r[cFecha]:''),textoOrden:'',trabajo:cTxt?r[cTxt]:'',puesto:'',resp:cResp?r[cResp]:'Sin responsable',estado:notificada?'Notificada':'Sin notificar',sistema:'historico'}
 }).filter(x=>x.ot)}
 function normalizarStatusOperacion(valor){return String(valor??'').trim().replace(/\s+/g,' ').toUpperCase()}
 function fechaHoyLocal(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -249,24 +269,27 @@ function clasificarStatusOperacion(status,fecha,hoy=fechaHoyLocal()){
   return 'Sin clasificar';
 }
 function mapSAPNuevo(rows){return rows.map(r=>{
-  const cFecha=findColExact(r,['Inic.extr.','Fecha de inicio extrema','Inicio extremo']);
+  const cFechaPlan=findColExact(r,['Inic.extr.','Fecha de inicio extrema','Inicio extremo']);
+  const cFechaFin=findColExact(r,['Fecha de fin de ejecución real','Fecha de fin de ejecucion real','FecFinReal','Fin ejec.real']);
   const cAviso=findColExact(r,['Aviso']);
   const cOrden=findColExact(r,['Orden','Número de orden','Numero de orden']);
   const cClase=findColExact(r,['Clase de orden','Clase orden','Clase']);
   const cOperacion=findColExact(r,['Operación','Operacion','Op.']);
+  const cTextoOrden=findColExact(r,['Texto breve','Texto breve orden','Texto de orden']);
   const cTrabajo=findColExact(r,['Texto breve operación','Texto breve operacion','Texto operación','Texto operacion']);
   const cPuesto=findColExact(r,['Pto.tbjo.op.','Pto.tbjo.operación','Pto.tbjo.operacion','Puesto trabajo operación','Puesto trabajo operacion']);
   const cStatus=findColExact(r,['Status sistema op.','Status sistema operación','Status sistema operacion']);
   const cHH=findColExact(r,['Trabajo real']);
-  const fecha=excelDate(cFecha?r[cFecha]:'');
+  const fechaPlanificacion=excelDate(cFechaPlan?r[cFechaPlan]:'');
+  const fechaFinalizacion=excelDate(cFechaFin?r[cFechaFin]:'');
   const ot=String(cOrden?r[cOrden]:'').trim().replace(/\.0$/,'');
   const operacion=String(cOperacion?r[cOperacion]:'').trim().replace(/\.0$/,'').padStart(4,'0');
   const status=normalizarStatusOperacion(cStatus?r[cStatus]:'');
-  const estado=clasificarStatusOperacion(status,fecha);
-  return{ot,operacion,aviso:String(cAviso?r[cAviso]:'').trim().replace(/\.0$/,''),hh:toNum(cHH?r[cHH]:0),clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha,trabajo:cTrabajo?r[cTrabajo]:'',puesto:cPuesto?r[cPuesto]:'',resp:'Asistente de mantención',status,estado,sistema:'nuevo',claveOperacion:ot+'|'+operacion}
-}).filter(x=>x.ot&&x.operacion&&x.fecha>=FECHA_CORTE_SEMANA_38_2026&&x.estado!=='Excluida')}
+  const estado=clasificarStatusOperacion(status,fechaPlanificacion);
+  return{ot,operacion,aviso:String(cAviso?r[cAviso]:'').trim().replace(/\.0$/,''),hh:toNum(cHH?r[cHH]:0),clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha:fechaFinalizacion,fechaPlanificacion,fechaFinalizacion,textoOrden:cTextoOrden?r[cTextoOrden]:'',trabajo:cTrabajo?r[cTrabajo]:'',puesto:cPuesto?r[cPuesto]:'',resp:'Asistente de mantención',status,estado,sistema:'nuevo',claveOperacion:ot+'|'+operacion}
+}).filter(x=>x.ot&&x.operacion&&x.estado!=='Excluida')}
 function mapSAP(rows){return tieneColumnasSapNuevo(rows)?mapSAPNuevo(rows):mapSAPHistorico(rows)}
-function mapPlan(rows){return rows.map(r=>{let cF=findColExact(r,['Fecha']);let cA=findColExact(r,['Número de aviso','Numero de aviso','Aviso']);let cO=findColExact(r,['Número de orden','Numero de orden','Orden','OT']);let cOp=findColExact(r,['Operación','Operacion']);let cT=findColExact(r,['Trabajo','Descripción','Descripcion']);let cE=findColExact(r,['Encargado','Responsable']);let cTu=findColExact(r,['Turno']);let ot=extractOT(cO?r[cO]:Object.values(r).join(' '));return{fecha:excelDate(cF?r[cF]:''),aviso:cA?r[cA]:'',ot,operacion:cOp?r[cOp]:'',trabajo:cT?r[cT]:'',encargado:normalizarEncargado(cE?r[cE]:''),turno:cTu?r[cTu]:'',estado:'Pendiente'}}).filter(x=>x.ot)}
+function mapPlan(rows){return rows.map(r=>{let cF=findColExact(r,['Fecha']);let cA=findColExact(r,['Número de aviso','Numero de aviso','Aviso']);let cO=findColExact(r,['Número de orden','Numero de orden','Orden','OT']);let cOp=findColExact(r,['Operación','Operacion']);let cT=findColExact(r,['Trabajo','Descripción','Descripcion']);let cE=findColExact(r,['Encargado','Responsable']);let cTu=findColExact(r,['Turno']);let ot=extractOT(cO?r[cO]:Object.values(r).join(' '));return{fecha:excelDate(cF?r[cF]:''),aviso:cA?r[cA]:'',ot,operacion:cOp?r[cOp]:'',textoOrden:'',trabajo:cT?r[cT]:'',encargado:normalizarEncargado(cE?r[cE]:''),turno:cTu?r[cTu]:'',estado:'Pendiente'}}).filter(x=>x.ot)}
 function destroy(id){if(charts[id])charts[id].destroy()}
 function chart(id,type,labels,data,label,colors){
   destroy(id);
@@ -651,7 +674,9 @@ async function cargarDatosGithub(){
     sapRows=[...(historicoRows||[]),...(nuevoRows||[])];
     sapHistorico=historicoRows?mapSAPHistorico(historicoRows).filter(x=>!x.fecha||x.fecha<FECHA_CORTE_SEMANA_38_2026):[];
     sapNuevo=nuevoRows?mapSAPNuevo(nuevoRows):[];
-    sap=[...sapHistorico,...sapNuevo];
+    // Si el export nuevo trae fechas reales, es la fuente completa del resumen de HH.
+    // El histórico se conserva aparte para resolver el Plan Semanal anterior al corte.
+    sap=sapNuevo.some(x=>x.fechaFinalizacion)?[...sapNuevo]:[...sapHistorico,...sapNuevo];
     llenarSelectorAnios();
     const hoy=new Date();
     const mesActual=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
@@ -667,7 +692,8 @@ async function cargarDatosGithub(){
       [planFile.name]:mapPlan(planRows).map(p=>({...p,origen:planFile.name}))
     };
     plan=planesCargados[planFile.name];
-    seleccionarUltimoPlanDisponible(false,$('plan').classList.contains('active'));
+    if($('plan').classList.contains('active'))activarSemanaActual(false);
+    else seleccionarUltimoPlanDisponible(false,false);
     ultimaCarga=new Date().toLocaleString('es-CL');
     render();
   }catch(e){
@@ -676,7 +702,7 @@ async function cargarDatosGithub(){
     $('estadoCarga').innerHTML=`No se pudieron cargar los datos. Verifica que los Excel estén dentro de <b>datos/</b>. <span class="bad pill">${e.message}</span>`;
   }
 }
-function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=META_HH_MENSUAL,meses=mesesPeriodo(desde,hasta),esSemanal=$('tipoPeriodo').value==='semanal',meta=esSemanal?META_HH_SEMANAL:metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta)).map(x=>x.sistema==='nuevo'?{...x,estado:clasificarStatusOperacion(x.status,x.fecha)}:x);let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
+function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=META_HH_MENSUAL,meses=mesesPeriodo(desde,hasta),esSemanal=$('tipoPeriodo').value==='semanal',meta=esSemanal?META_HH_SEMANAL:metaMensual*meses;let sapF=sap.filter(x=>x.sistema==='nuevo'?!!x.fechaFinalizacion&&(!desde||x.fechaFinalizacion>=desde)&&(!hasta||x.fechaFinalizacion<=hasta):(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta)).map(x=>x.sistema==='nuevo'?{...x,fecha:x.fechaFinalizacion,estado:clasificarStatusOperacion(x.status,x.fechaPlanificacion)}:x);let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
  let sapCalc=[...aggregateSAPByOrden(sapF.filter(x=>x.sistema!=='nuevo')),...sapF.filter(x=>x.sistema==='nuevo')];
  let hh=sapCalc.reduce((a,b)=>a+b.hh,0); let ot=unique(sapCalc.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title=esSemanal?'Meta semanal '+fmt(META_HH_SEMANAL):'Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
  let dias={};sapCalc.forEach(x=>{let f=x.fecha||'Sin fecha'; if(!dias[f])dias[f]={hh:0,ots:new Set()};dias[f].hh+=x.hh;dias[f].ots.add(x.ot)});let labels=Object.keys(dias).sort();let metaDia=metaMensual/30;
@@ -690,16 +716,16 @@ function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=
  let planPeriodo=plan.filter(p=>p.fecha&&p.fecha<FECHA_CORTE_SEMANA_38_2026&&(!desde||p.fecha>=desde)&&(!hasta||p.fecha<=hasta));
  let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
  let historicoPlan=Object.values(planUnico).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,operacion:'',puesto:'',sistema:'historico',estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});
- let nuevoPlan=sapNuevo.filter(p=>(!desde||p.fecha>=desde)&&(!hasta||p.fecha<=hasta)).map(p=>({...p,estado:clasificarStatusOperacion(p.status,p.fecha),encargado:'',turno:''}));
+ let nuevoPlan=sapNuevo.filter(p=>p.fechaPlanificacion>=FECHA_CORTE_SEMANA_38_2026&&(!desde||p.fechaPlanificacion>=desde)&&(!hasta||p.fechaPlanificacion<=hasta)).map(p=>({...p,fecha:p.fechaPlanificacion,estado:clasificarStatusOperacion(p.status,p.fechaPlanificacion),encargado:'',turno:''}));
  let planCalc=[...historicoPlan,...nuevoPlan].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.ot).localeCompare(String(b.ot))||String(a.operacion).localeCompare(String(b.operacion)));
  planActualPorAviso={};planCalc.filter(p=>p.sistema==='historico').forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p});
  let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,evaluables=planCalc.filter(x=>x.estado!=='Programada').length,pp=evaluables?Math.round(notif/evaluables*100):null;
  $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp==null?'—':pp+'%';$('planBar').style.width=(pp||0)+'%';chart('chartPlan','doughnut',['Notificadas','Vencidas','Para hoy','Programadas'],['Notificada','Vencida','Para hoy','Programada'].map(e=>planCalc.filter(x=>x.estado===e).length),'operaciones',[COLORS.green,COLORS.red,COLORS.orange,COLORS.sky]);
  const incluyeHistorico=!!historicoPlan.length;document.querySelectorAll('.soloHistorico').forEach(el=>el.classList.toggle('hidden',!incluyeHistorico));
  let enc={};historicoPlan.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});const encargados=Object.keys(enc);if(incluyeHistorico){chart('chartEnc','bar',encargados,Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');mostrarBotonesEncargados(encargados);activarFiltroGraficoEncargados()}else{destroy('chartEnc');encargadoPlanFiltrado='';}
- let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Programada'?'programada':p.estado==='Para hoy'?'hoy':p.estado==='Vencida'?'bad':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';const fecha=htmlSeguro(showDate(p.fecha)),trabajo=htmlSeguro(p.trabajo),aviso=htmlSeguro(p.aviso),orden=htmlSeguro(p.ot),operacion=htmlSeguro(p.operacion),encargado=htmlSeguro(p.encargado),turno=htmlSeguro(p.turno),estado=htmlSeguro(p.estado);const botonEstado=p.sistema==='historico'?`<button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${estado}</button>`:`<span class="pill ${estadoClase}">${estado}</span>`;tp.insertAdjacentHTML('beforeend',`<tr data-estado="${estado}" data-encargado="${encargado}"><td class="planSeleccion"><input type="checkbox" class="planFilaCheck" aria-label="Seleccionar operación ${operacion||orden}" data-fecha="${fecha}" data-aviso="${aviso}" data-orden="${orden}" data-operacion="${operacion}" data-trabajo="${trabajo}" data-encargado="${encargado}" data-turno="${turno}" data-estado="${estado}"></td><td>${fecha}</td><td><span class="copiable-sap" data-copy="${aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${aviso}</span></td><td><b class="copiable-sap" data-copy="${orden}" data-tipo="Orden" title="Clic para copiar orden">${orden}</b></td><td><span class="copiable-sap" data-copy="${operacion}" data-tipo="Operación" title="Clic para copiar operación">${operacion}</span></td><td><span class="copiable-sap" data-copy="${trabajo}" data-tipo="Trabajo" title="Clic para copiar trabajo">${trabajo}</span></td><td class="soloHistorico">${encargado}</td><td class="soloHistorico">${turno}</td><td>${botonEstado}</td></tr>`)});aplicarFiltroEncargado();actualizarSeleccionPlan();}
-function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')render()}
-function exportarCSV(){let rows=[['Fecha','Aviso','Orden','Operación','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].slice(1,9).map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
+ let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Programada'?'programada':p.estado==='Para hoy'?'hoy':p.estado==='Vencida'?'bad':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';const fecha=htmlSeguro(showDate(p.fecha)),textoOrden=htmlSeguro(p.textoOrden),trabajo=htmlSeguro(p.trabajo),aviso=htmlSeguro(p.aviso),orden=htmlSeguro(p.ot),operacion=htmlSeguro(p.operacion),encargado=htmlSeguro(p.encargado),turno=htmlSeguro(p.turno),estado=htmlSeguro(p.estado),claseHistorico='soloHistorico'+(incluyeHistorico?'':' hidden');const botonEstado=p.sistema==='historico'?`<button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${estado}</button>`:`<span class="pill ${estadoClase}">${estado}</span>`;tp.insertAdjacentHTML('beforeend',`<tr data-estado="${estado}" data-encargado="${encargado}"><td class="planSeleccion"><input type="checkbox" class="planFilaCheck" aria-label="Seleccionar operación ${operacion||orden}" data-fecha="${fecha}" data-aviso="${aviso}" data-orden="${orden}" data-texto-orden="${textoOrden}" data-operacion="${operacion}" data-trabajo="${trabajo}" data-encargado="${encargado}" data-turno="${turno}" data-estado="${estado}"></td><td>${fecha}</td><td><span class="copiable-sap" data-copy="${aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${aviso}</span></td><td><b class="copiable-sap" data-copy="${orden}" data-tipo="Orden" title="Clic para copiar orden">${orden}</b></td><td><span class="copiable-sap" data-copy="${textoOrden}" data-tipo="Texto breve orden" title="Clic para copiar texto breve de la orden">${textoOrden}</span></td><td><span class="copiable-sap" data-copy="${operacion}" data-tipo="Operación" title="Clic para copiar operación">${operacion}</span></td><td><span class="copiable-sap" data-copy="${trabajo}" data-tipo="Trabajo" title="Clic para copiar trabajo">${trabajo}</span></td><td class="${claseHistorico}">${encargado}</td><td class="${claseHistorico}">${turno}</td><td class="planEstado">${botonEstado}</td></tr>`)});aplicarFiltroEncargado();actualizarSeleccionPlan();}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')activarSemanaActual();}
+function exportarCSV(){let rows=[['Fecha','Aviso','Orden','Texto breve orden','Operación','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].slice(1,10).map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 
 function checksPlan(){return [...document.querySelectorAll('#tablaPlan .planFilaCheck')]}
 function actualizarSeleccionPlan(){
@@ -714,7 +740,7 @@ async function escribirPortapapeles(valor){
 async function copiarSeleccionPlan(){
   const seleccion=checksPlan().filter(x=>x.checked);
   if(!seleccion.length)return;
-  const texto=seleccion.map(x=>[x.dataset.fecha,x.dataset.aviso,x.dataset.orden,x.dataset.operacion,x.dataset.trabajo,...(x.dataset.encargado||x.dataset.turno?[x.dataset.encargado,x.dataset.turno]:[])].join('\t')).join('\n');
+  const texto=seleccion.map(x=>[x.dataset.fecha,x.dataset.aviso,x.dataset.orden,x.dataset.textoOrden,x.dataset.operacion,x.dataset.trabajo,...(x.dataset.encargado||x.dataset.turno?[x.dataset.encargado,x.dataset.turno]:[])].join('\t')).join('\n');
   try{
     await escribirPortapapeles(texto);
     seleccion.forEach(check=>check.checked=false);
@@ -1027,14 +1053,14 @@ async function capturarGraficosInforme(){
 }
 function buildPdfTablePlan(rows){
   const incluyeHistorico=rows.some(tr=>tr.dataset.encargado);
-  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Operación</th><th>Trabajo</th>'+(incluyeHistorico?'<th>Encargado</th><th>Turno</th>':'')+'<th>Estado</th></tr></thead><tbody>';
+  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Texto breve orden</th><th>Operación</th><th>Trabajo</th>'+(incluyeHistorico?'<th>Encargado</th><th>Turno</th>':'')+'<th>Estado</th></tr></thead><tbody>';
   rows.forEach(tr=>{
     const t=[...tr.children].slice(1).map(td=>td.innerText.trim());
-    const estado=(t[7]||'Pendiente').toLowerCase();
-    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[7]}</span>`:`<span class="pdfBadgeBad">${t[7]||'Pendiente'}</span>`;
-    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td>${incluyeHistorico?`<td>${t[5]||''}</td><td>${t[6]||''}</td>`:''}<td>${badge}</td></tr>`;
+    const estado=(t[8]||'Pendiente').toLowerCase();
+    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[8]}</span>`:`<span class="pdfBadgeBad">${t[8]||'Pendiente'}</span>`;
+    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td>${incluyeHistorico?`<td>${t[6]||''}</td><td>${t[7]||''}</td>`:''}<td>${badge}</td></tr>`;
   });
-  if(!rows.length)html+='<tr><td colspan="8">No hay operaciones para los filtros seleccionados.</td></tr>';
+  if(!rows.length)html+='<tr><td colspan="9">No hay operaciones para los filtros seleccionados.</td></tr>';
   html+='</tbody></table>'; return html;
 }
 function buildPdfTableDia(rows=[...document.querySelectorAll('#tablaDia tbody tr')]){
