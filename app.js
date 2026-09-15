@@ -1,4 +1,4 @@
-let sapRows=[],sap=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
+let sapRows=[],sap=[],sapHistorico=[],sapNuevo=[],planRows=[],plan=[],planesCargados={},charts={}, sapArchivo="Pendiente", planArchivo="Pendiente", ultimaCarga="Pendiente", githubArchivos=[];
 const ESTADOS_API_URL='https://script.google.com/macros/s/AKfycbwryr1x44hIG9wUeU_8kc0ZmOjBwXT7TXjeAhluQh46EdidOjg1pDLJIkCl61VJVovt/exec';
 let estadosTerreno={},planActualPorAviso={},avisoEstadoAbierto='';
 let encargadoPlanFiltrado='';
@@ -20,11 +20,15 @@ const FALLBACK_DATA_FILES=[
   'EXPORT - 2026-08-21T141850.812.xlsx','EXPORT - 2026-08-24T101455.897.XLSX','EXPORT - 2026-08-28T080447.610.xlsx',
   'EXPORT - 2026-08-28T160656.965.xlsx','EXPORT - 2026-08-31T151113.634.xlsx','EXPORT - 2026-09-01T082433.896.xlsx',
   'EXPORT - 2026-09-02T081153.318.XLSX','EXPORT - 2026-09-03T081150.794.xlsx','EXPORT - 2026-09-07T084416.545.XLSX'
+  ,'EXPORT - 2026-09-15T112255.007.xlsx'
 ];
 const COLORS={blue:'#0b3a78',sky:'#38a3e8',green:'#16a34a',red:'#dc2626',orange:'#f59e0b',pink:'#f45b85',purple:'#6d45c9',gray:'#64748b'};
 const CLASS_INFO={ZM01:'Correctiva',ZM02:'Mantención preventiva',ZM05:'Proyecto'};
 const META_HH_MENSUAL=350;
 const META_HH_SEMANAL=87.5;
+const META_HH_DIARIA=11.7;
+// Lunes de la semana ISO 38 de 2026. Nunca sustituir por una comparación de número de semana.
+const FECHA_CORTE_SEMANA_38_2026='2026-09-14';
 const $=id=>document.getElementById(id); const fmt=n=>Number(n||0).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1});
 function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function normalizarEncargado(valor){
@@ -203,6 +207,13 @@ function detectTable(aoa){
   return aoa.slice(best+1).filter(r=>r && r.some(v=>String(v||'').trim()!=='')).map(r=>{let o={};headers.forEach((h,i)=>o[h]=r[i]??'');return o});
 }
 function findColExact(row,keys){const cols=Object.keys(row||{});return cols.find(c=>keys.some(k=>norm(c)===norm(k)))||cols.find(c=>keys.some(k=>norm(c).includes(norm(k))))||null}
+function tieneColumnasSapNuevo(rows){
+  const r=rows?.[0]||{};
+  return !!findColExact(r,['Inic.extr.','Fecha de inicio extrema']) &&
+    !!findColExact(r,['Operación','Operacion','Op.']) &&
+    !!findColExact(r,['Status sistema op.','Status sistema operación','Status sistema operacion']) &&
+    !!findColExact(r,['Trabajo real']);
+}
 function findHHCol(row){
   const cols=Object.keys(row||{});
   const bad=/h\.in\.real|horfinreal|hora\s*inicio|hora\s*fin|inicio|fin/i;
@@ -212,7 +223,7 @@ function findHHCol(row){
   if(c) return c;
   return cols.find(col=>!bad.test(norm(col)) && /trabajo\s*real|hh|horas\s*reales|actual\s*work/i.test(norm(col)))||null;
 }
-function mapSAP(rows){return rows.map(r=>{
+function mapSAPHistorico(rows){return rows.map(r=>{
   let joined=Object.values(r).join(' ');
   let cOT=findColExact(r,['Numero de orden','Número de orden','Orden','Orden de trabajo','OT','Order']);
   let cHH=findHHCol(r);
@@ -225,8 +236,36 @@ function mapSAP(rows){return rows.map(r=>{
   let hh=toNum(cHH?r[cHH]:0);
   let est=String(cEstado?r[cEstado]:'');
   let notificada=!!ot || hh!==0 || /noti|notif|cnf|conf|cerr|final|iw41|real/i.test(est);
-  return{ot,hh,clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha:excelDate(cFecha?r[cFecha]:''),trabajo:cTxt?r[cTxt]:'',resp:cResp?r[cResp]:'Sin responsable',estado:notificada?'Notificada':'Sin notificar'}
+  return{ot,operacion:'',aviso:'',hh,clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha:excelDate(cFecha?r[cFecha]:''),trabajo:cTxt?r[cTxt]:'',puesto:'',resp:cResp?r[cResp]:'Sin responsable',estado:notificada?'Notificada':'Sin notificar',sistema:'historico'}
 }).filter(x=>x.ot)}
+function normalizarStatusOperacion(valor){return String(valor??'').trim().replace(/\s+/g,' ').toUpperCase()}
+function fechaHoyLocal(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function clasificarStatusOperacion(status,fecha,hoy=fechaHoyLocal()){
+  const s=normalizarStatusOperacion(status);
+  if(/(^|\s)INBO(?:\s|\.|$)/.test(s))return 'Excluida';
+  if(/^(?:CTEC|CETEC)(?:\s|\.|$)/.test(s))return 'Excluida';
+  if(/(^|\s)NOTI(?:\s|\.|$)/.test(s))return 'Notificada';
+  if(/(^|\s)LIB\.(?:\s|$)/.test(s))return fecha<hoy?'Vencida':fecha===hoy?'Para hoy':'Programada';
+  return 'Sin clasificar';
+}
+function mapSAPNuevo(rows){return rows.map(r=>{
+  const cFecha=findColExact(r,['Inic.extr.','Fecha de inicio extrema','Inicio extremo']);
+  const cAviso=findColExact(r,['Aviso']);
+  const cOrden=findColExact(r,['Orden','Número de orden','Numero de orden']);
+  const cClase=findColExact(r,['Clase de orden','Clase orden','Clase']);
+  const cOperacion=findColExact(r,['Operación','Operacion','Op.']);
+  const cTrabajo=findColExact(r,['Texto breve operación','Texto breve operacion','Texto operación','Texto operacion']);
+  const cPuesto=findColExact(r,['Pto.tbjo.op.','Pto.tbjo.operación','Pto.tbjo.operacion','Puesto trabajo operación','Puesto trabajo operacion']);
+  const cStatus=findColExact(r,['Status sistema op.','Status sistema operación','Status sistema operacion']);
+  const cHH=findColExact(r,['Trabajo real']);
+  const fecha=excelDate(cFecha?r[cFecha]:'');
+  const ot=String(cOrden?r[cOrden]:'').trim().replace(/\.0$/,'');
+  const operacion=String(cOperacion?r[cOperacion]:'').trim().replace(/\.0$/,'').padStart(4,'0');
+  const status=normalizarStatusOperacion(cStatus?r[cStatus]:'');
+  const estado=clasificarStatusOperacion(status,fecha);
+  return{ot,operacion,aviso:String(cAviso?r[cAviso]:'').trim().replace(/\.0$/,''),hh:toNum(cHH?r[cHH]:0),clase:cClase?String(r[cClase]||'Sin clase').trim():'Sin clase',fecha,trabajo:cTrabajo?r[cTrabajo]:'',puesto:cPuesto?r[cPuesto]:'',resp:'Asistente de mantención',status,estado,sistema:'nuevo',claveOperacion:ot+'|'+operacion}
+}).filter(x=>x.ot&&x.operacion&&x.fecha>=FECHA_CORTE_SEMANA_38_2026&&x.estado!=='Excluida')}
+function mapSAP(rows){return tieneColumnasSapNuevo(rows)?mapSAPNuevo(rows):mapSAPHistorico(rows)}
 function mapPlan(rows){return rows.map(r=>{let cF=findColExact(r,['Fecha']);let cA=findColExact(r,['Número de aviso','Numero de aviso','Aviso']);let cO=findColExact(r,['Número de orden','Numero de orden','Orden','OT']);let cOp=findColExact(r,['Operación','Operacion']);let cT=findColExact(r,['Trabajo','Descripción','Descripcion']);let cE=findColExact(r,['Encargado','Responsable']);let cTu=findColExact(r,['Turno']);let ot=extractOT(cO?r[cO]:Object.values(r).join(' '));return{fecha:excelDate(cF?r[cF]:''),aviso:cA?r[cA]:'',ot,operacion:cOp?r[cOp]:'',trabajo:cT?r[cT]:'',encargado:normalizarEncargado(cE?r[cE]:''),turno:cTu?r[cTu]:'',estado:'Pendiente'}}).filter(x=>x.ot)}
 function destroy(id){if(charts[id])charts[id].destroy()}
 function chart(id,type,labels,data,label,colors){
@@ -325,6 +364,10 @@ async function listarArchivosDatos(){
       }));
     }
   }
+  // Combinar el índice remoto con el respaldo permite validar una publicación local
+  // y seguir cargando cuando la API aún no refleja un archivo recién incorporado.
+  const indexados=new Set(files.map(f=>f.name.toLowerCase()));
+  FALLBACK_DATA_FILES.forEach(name=>{if(!indexados.has(name.toLowerCase()))files.push({name,type:'file',download_url:'datos/'+encodeURIComponent(name)})});
   // GitHub puede limitar su API pública. Verificar los planes predecibles en la
   // misma publicación permite incorporar SemanaNN.xlsx sin editar app.js cada semana.
   const anio=Number(($('semanaPeriodo')?.value||String(new Date().getFullYear())).slice(0,4))||new Date().getFullYear();
@@ -431,21 +474,22 @@ function activarFiltroPlanTeclado(evento,estado){
 }
 function actualizarResumenPlanFiltrado(filasGrupo){
   const total=filasGrupo.length;
-  const notificadas=filasGrupo.filter(tr=>(tr.children[7]?.textContent.trim()||'')==='Notificada').length;
-  const pendientes=total-notificadas;
-  const cumplimiento=total?Math.round(notificadas/total*100):0;
+  const notificadas=filasGrupo.filter(tr=>tr.dataset.estado==='Notificada').length;
+  const evaluables=filasGrupo.filter(tr=>tr.dataset.estado!=='Programada').length;
+  const pendientes=filasGrupo.filter(tr=>tr.dataset.estado!=='Notificada').length;
+  const cumplimiento=evaluables?Math.round(notificadas/evaluables*100):null;
   $('planTotal').textContent=total;
   $('planNotif').textContent=notificadas;
   $('planPend').textContent=pendientes;
-  $('planPct').textContent=cumplimiento+'%';
-  $('planBar').style.width=cumplimiento+'%';
+  $('planPct').textContent=cumplimiento==null?'—':cumplimiento+'%';
+  $('planBar').style.width=(cumplimiento||0)+'%';
 }
 function aplicarFiltroEncargado(){
   const filas=[...document.querySelectorAll('#tablaPlan tbody tr')];
-  const filasGrupo=filas.filter(tr=>!encargadoPlanFiltrado||tr.children[5]?.textContent.trim()===encargadoPlanFiltrado);
+  const filasGrupo=filas.filter(tr=>!encargadoPlanFiltrado||tr.dataset.encargado===encargadoPlanFiltrado);
   let totalVisible=0;
   filas.forEach(tr=>{
-    const encargado=tr.children[5]?.textContent.trim(),estado=tr.children[7]?.textContent.trim()||'';
+    const encargado=tr.dataset.encargado||'',estado=tr.dataset.estado||'';
     const coincideEncargado=!encargadoPlanFiltrado||encargado===encargadoPlanFiltrado;
     const coincideEstado=!estadoPlanFiltrado||(estadoPlanFiltrado==='notificadas'?estado==='Notificada':estado!=='Notificada');
     const coincide=coincideEncargado&&coincideEstado;
@@ -455,7 +499,7 @@ function aplicarFiltroEncargado(){
   });
   actualizarResumenPlanFiltrado(filasGrupo);
   const titulo=$('tituloDetallePlan');
-  if(titulo){const estadoTexto=estadoPlanFiltrado==='notificadas'?'OT Notificadas':estadoPlanFiltrado==='pendientes'?'OT Pendientes':'Detalle del Plan del Período';titulo.textContent=[estadoTexto,encargadoPlanFiltrado?`de ${encargadoPlanFiltrado}`:'',`(${totalVisible} avisos)`].filter(Boolean).join(' ')}
+  if(titulo){const estadoTexto=estadoPlanFiltrado==='notificadas'?'Operaciones notificadas':estadoPlanFiltrado==='pendientes'?'Operaciones no notificadas':'Detalle del Plan del Período';titulo.textContent=[estadoTexto,encargadoPlanFiltrado?`de ${encargadoPlanFiltrado}`:'',`(${totalVisible} operaciones)`].filter(Boolean).join(' ')}
   document.querySelectorAll('.planKpiFilter').forEach(card=>{const activo=card.id===(estadoPlanFiltrado==='notificadas'?'cardPlanNotif':estadoPlanFiltrado==='pendientes'?'cardPlanPend':'');card.classList.toggle('active',activo);card.setAttribute('aria-pressed',String(activo))});
   document.querySelectorAll('#encargadoFiltros button').forEach(btn=>{
     const activo=btn.dataset.encargado===encargadoPlanFiltrado;
@@ -581,16 +625,33 @@ async function cargarDatosGithub(){
     $('estadoCarga').innerHTML='Buscando el último archivo SAP cargado en GitHub... <span class="gray pill">esperando</span>';
     const archivos=await listarArchivosDatos();
     githubArchivos=archivos;
-    const sapFile=await elegirSapMasReciente(archivos);
+    const candidatosSap=obtenerCandidatos(archivos,'sap');
+    let nuevoFile=null,historicoFile=null,nuevoRows=null,historicoRows=null;
+    for(const candidato of candidatosSap){
+      try{
+        const rows=await leerExcelGithub(candidato);
+        if(tieneColumnasSapNuevo(rows) && !nuevoFile){nuevoFile=candidato;nuevoRows=rows}
+        if(!tieneColumnasSapNuevo(rows) && !historicoFile){historicoFile=candidato;historicoRows=rows}
+        if(nuevoFile&&historicoFile)break;
+      }catch(error){console.warn('No se pudo inspeccionar '+candidato.name,error)}
+    }
+    if(!historicoFile&&!nuevoFile)throw new Error('No se encontró un archivo SAP compatible.');
     // Cada carga/actualización parte desde la semana más reciente disponible.
     // El usuario aún puede revisar semanas anteriores usando el selector.
-    const planFile=elegirArchivo(archivos,'plan');
+    let planFile=null;
+    for(const candidato of obtenerCandidatos(archivos,'plan')){
+      try{planRows=await leerExcelGithub(candidato);planFile=candidato;break}
+      catch(error){console.warn('Plan no disponible, se probará el siguiente: '+candidato.name,error)}
+    }
+    if(!planFile)throw new Error('No se encontró un Plan Semanal histórico disponible.');
     llenarSelectorPlanes(archivos, planFile.name);
-    sapArchivo='datos/'+sapFile.name;
+    sapArchivo=[historicoFile&&historicoFile.name,nuevoFile&&nuevoFile.name].filter(Boolean).join(' + ');
     planArchivo='datos/'+planFile.name;
-    $('estadoCarga').innerHTML=`Cargando <b>${sapFile.name}</b> y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
-    sapRows=await leerExcelGithub(sapFile);
-    sap=mapSAP(sapRows);
+    $('estadoCarga').innerHTML=`Cargando fuentes SAP y <b>${planFile.name}</b>... <span class="gray pill">procesando</span>`;
+    sapRows=[...(historicoRows||[]),...(nuevoRows||[])];
+    sapHistorico=historicoRows?mapSAPHistorico(historicoRows).filter(x=>!x.fecha||x.fecha<FECHA_CORTE_SEMANA_38_2026):[];
+    sapNuevo=nuevoRows?mapSAPNuevo(nuevoRows):[];
+    sap=[...sapHistorico,...sapNuevo];
     llenarSelectorAnios();
     const hoy=new Date();
     const mesActual=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
@@ -602,7 +663,6 @@ async function cargarDatosGithub(){
     $('controlAnio').classList.add('hidden');
     document.querySelectorAll('.periodSwitch [data-periodo]').forEach(btn=>btn.classList.toggle('active',btn.dataset.periodo==='mensual'));
     aplicarPeriodoSeleccionado(false);
-    planRows=await leerExcelGithub(planFile);
     planesCargados={
       [planFile.name]:mapPlan(planRows).map(p=>({...p,origen:planFile.name}))
     };
@@ -616,31 +676,30 @@ async function cargarDatosGithub(){
     $('estadoCarga').innerHTML=`No se pudieron cargar los datos. Verifica que los Excel estén dentro de <b>datos/</b>. <span class="bad pill">${e.message}</span>`;
   }
 }
-function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=META_HH_MENSUAL,meses=mesesPeriodo(desde,hasta),esSemanal=$('tipoPeriodo').value==='semanal',meta=esSemanal?META_HH_SEMANAL:metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta));let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
- let sapCalc=aggregateSAPByOrden(sapF);
+function render(){let desde=$('desde').value,hasta=$('hasta').value,metaMensual=META_HH_MENSUAL,meses=mesesPeriodo(desde,hasta),esSemanal=$('tipoPeriodo').value==='semanal',meta=esSemanal?META_HH_SEMANAL:metaMensual*meses;let sapF=sap.filter(x=>(!desde||!x.fecha||x.fecha>=desde)&&(!hasta||!x.fecha||x.fecha<=hasta)).map(x=>x.sistema==='nuevo'?{...x,estado:clasificarStatusOperacion(x.status,x.fecha)}:x);let clases=unique(sap.map(x=>x.clase));let sel=$('claseFiltro');let current=sel.value;if(sel.options.length<=1){clases.forEach(c=>{let o=document.createElement('option');o.textContent=c;sel.appendChild(o)})} if(current&&current!=='Todas')sapF=sapF.filter(x=>x.clase===current);
+ let sapCalc=[...aggregateSAPByOrden(sapF.filter(x=>x.sistema!=='nuevo')),...sapF.filter(x=>x.sistema==='nuevo')];
  let hh=sapCalc.reduce((a,b)=>a+b.hh,0); let ot=unique(sapCalc.filter(x=>x.estado==='Notificada').map(x=>x.ot)).length; let prom=ot?hh/ot:0; let pct=meta?hh/meta*100:0; let desv=hh-meta; $('hhReal').textContent=fmt(hh);$('hhMeta').textContent=fmt(meta);$('hhMeta').title=esSemanal?'Meta semanal '+fmt(META_HH_SEMANAL):'Meta mensual '+fmt(metaMensual)+' × '+meses+' mes(es)';$('desvHH').textContent=fmt(desv);$('desvPct').textContent=fmt(meta?desv/meta*100:0)+'%';$('cumplHH').textContent=fmt(pct)+'%';$('topCumpl').textContent=fmt(pct)+'%';$('topMeta').textContent=pct>=100?'Sobre la meta':'Bajo la meta';$('topCumpl').style.color=pct>=100?COLORS.green:COLORS.red;$('otEjecutadas').textContent=ot;$('promHH').textContent=fmt(prom);$('periodoTxt').textContent=`${showDate(desde)} al ${showDate(hasta)}`;$('periodoTxt2').textContent=$('periodoTxt').textContent;$('updateTxt').textContent=new Date().toLocaleString('es-CL');$('estadoCarga').innerHTML=`SAP: <b>${sap.length}</b> registros leídos <span class="gray pill">${sapArchivo}</span> | Plan semanal: <b>${plan.length}</b> OT leídas <span class="gray pill">${planArchivo}</span> | Última lectura: <span class="ok pill">${ultimaCarga}</span>`;
  let dias={};sapCalc.forEach(x=>{let f=x.fecha||'Sin fecha'; if(!dias[f])dias[f]={hh:0,ots:new Set()};dias[f].hh+=x.hh;dias[f].ots.add(x.ot)});let labels=Object.keys(dias).sort();let metaDia=metaMensual/30;
  let periodoLabel=periodoSeleccionadoLabel(desde,hasta);
  if($('tituloChartMes'))$('tituloChartMes').textContent='HH Real vs Meta HH - '+periodoLabel;
  if($('tituloChartTipo'))$('tituloChartTipo').firstChild.textContent='Órdenes por tipo de mantenimiento - '+periodoLabel;
  if($('tituloChartAcum'))$('tituloChartAcum').textContent='Cumplimiento acumulado del período - '+periodoLabel;
- let graficoPeriodo={};
- if($('tipoPeriodo').value==='anual'){
-   sapCalc.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha';if(!graficoPeriodo[k])graficoPeriodo[k]=0;graficoPeriodo[k]+=x.hh});
- }else{
-   graficoPeriodo[periodoLabel]=hh;
- }
- let labelsPeriodo=Object.keys(graficoPeriodo).sort();
- let metasPeriodo=labelsPeriodo.map(()=>$('tipoPeriodo').value==='anual'?metaMensual:meta);
- destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsPeriodo.map(x=>/^\d{4}-\d{2}$/.test(x)?showMes(x):x),datasets:[{label:'HH Real',data:labelsPeriodo.map(f=>graficoPeriodo[f]),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:metasPeriodo,borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
+ let graficoPeriodo={};if($('tipoPeriodo').value==='anual'){sapCalc.forEach(x=>{let k=(x.fecha&&/^\d{4}-\d{2}/.test(x.fecha))?x.fecha.slice(0,7):'Sin fecha';if(!graficoPeriodo[k])graficoPeriodo[k]=0;graficoPeriodo[k]+=x.hh})}else{graficoPeriodo[periodoLabel]=hh}let labelsPeriodo=Object.keys(graficoPeriodo).sort();let metasPeriodo=labelsPeriodo.map(()=>$('tipoPeriodo').value==='anual'?metaMensual:meta);destroy('chartDiario');charts.chartDiario=new Chart($('chartDiario'),{type:'bar',data:{labels:labelsPeriodo.map(x=>/^\d{4}-\d{2}$/.test(x)?showMes(x):x),datasets:[{label:'HH Real',data:labelsPeriodo.map(f=>graficoPeriodo[f]),borderWidth:1,backgroundColor:COLORS.blue,borderColor:COLORS.blue},{label:'Meta HH',data:metasPeriodo,borderWidth:1,backgroundColor:COLORS.green,borderColor:COLORS.green}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'HH'}}}}});let tb=$('tablaDia').querySelector('tbody');tb.innerHTML='';labels.forEach(f=>{let h=dias[f].hh;let dif=h-metaDia;let cls=dif>=0?'positive':'negative';tb.insertAdjacentHTML('beforeend',`<tr><td>${showDate(f)}</td><td>${fmt(h)}</td><td>${fmt(metaDia)}</td><td class="right ${cls}">${fmt(dif)}</td><td>${fmt(metaDia?h/metaDia*100:0)}%</td><td>${dias[f].ots.size}</td></tr>`)});
  let claseRaw=group(sapCalc,'clase','hh');let ordenClases=['ZM01','ZM02','ZM05'];let claseLabels=[],claseData=[],claseColors=[];ordenClases.concat(Object.keys(claseRaw).filter(k=>!ordenClases.includes(k))).forEach(k=>{if(claseRaw[k]){claseLabels.push(CLASS_INFO[k]?`${k} - ${CLASS_INFO[k]}`:k);claseData.push(claseRaw[k]);claseColors.push(k==='ZM01'?COLORS.sky:k==='ZM02'?COLORS.pink:k==='ZM05'?COLORS.orange:COLORS.gray)}});chart('chartTipo','pie',claseLabels,claseData,'HH',claseColors);let acumHH=[],acumMeta=[],a=0,m=0;labels.forEach(f=>{a+=dias[f].hh;m+=metaDia;acumHH.push(a);acumMeta.push(m)});destroy('chartAcum');charts.chartAcum=new Chart($('chartAcum'),{type:'line',data:{labels:labels.map(showDate),datasets:[{label:'HH Real acumulado',data:acumHH,borderColor:COLORS.blue,backgroundColor:COLORS.blue,borderWidth:3,borderDash:[],pointRadius:0,pointHoverRadius:4,spanGaps:true,tension:.25},{label:'Meta HH acumulada',data:acumMeta,borderColor:COLORS.green,backgroundColor:COLORS.green,borderWidth:3,borderDash:[],pointRadius:0,pointHoverRadius:4,spanGaps:true,tension:.25}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}});
- let sapByOT={};sap.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true});
- let planPeriodo=plan.filter(p=>p.fecha && (!desde||p.fecha>=desde) && (!hasta||p.fecha<=hasta));
+ let sapByOT={};sapHistorico.forEach(s=>{if(!sapByOT[s.ot])sapByOT[s.ot]={not:false}; if(s.estado==='Notificada')sapByOT[s.ot].not=true});
+ let planPeriodo=plan.filter(p=>p.fecha&&p.fecha<FECHA_CORTE_SEMANA_38_2026&&(!desde||p.fecha>=desde)&&(!hasta||p.fecha<=hasta));
  let planUnico={};planPeriodo.forEach(p=>{if(!planUnico[p.ot])planUnico[p.ot]={...p,origenes:[]};if(p.origen&&!planUnico[p.ot].origenes.includes(p.origen))planUnico[p.ot].origenes.push(p.origen);if(p.fecha<planUnico[p.ot].fecha)planUnico[p.ot].fecha=p.fecha});
- let planCalc=Object.values(planUnico).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||a.ot.localeCompare(b.ot)).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});planActualPorAviso={};planCalc.forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p}); let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,pp=total?Math.round(notif/total*100):0; $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp+'%';$('planBar').style.width=pp+'%';chart('chartPlan','doughnut',['Notificadas','Pendientes'],[notif,pend],'OT',[COLORS.green,COLORS.red]);let enc={};planCalc.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});const encargados=Object.keys(enc);chart('chartEnc','bar',encargados,Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');mostrarBotonesEncargados(encargados);activarFiltroGraficoEncargados();
- let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';const fecha=htmlSeguro(showDate(p.fecha)),trabajo=htmlSeguro(p.trabajo),aviso=htmlSeguro(p.aviso),orden=htmlSeguro(p.ot),operacion=htmlSeguro(p.operacion),encargado=htmlSeguro(p.encargado),turno=htmlSeguro(p.turno),estado=htmlSeguro(p.estado);tp.insertAdjacentHTML('beforeend',`<tr><td class="planSeleccion"><input type="checkbox" class="planFilaCheck" aria-label="Seleccionar aviso ${aviso}" data-fecha="${fecha}" data-aviso="${aviso}" data-orden="${orden}" data-operacion="${operacion}" data-trabajo="${trabajo}" data-encargado="${encargado}" data-turno="${turno}" data-estado="${estado}"></td><td>${fecha}</td><td><span class="copiable-sap" data-copy="${aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${aviso}</span></td><td><b class="copiable-sap" data-copy="${orden}" data-tipo="Orden" title="Clic para copiar orden">${orden}</b></td><td><span class="copiable-sap" data-copy="${operacion}" data-tipo="Operación" title="Clic para copiar operación">${operacion}</span></td><td><span class="copiable-sap" data-copy="${trabajo}" data-tipo="Trabajo" title="Clic para copiar trabajo">${trabajo}</span></td><td>${encargado}</td><td>${turno}</td><td><button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${estado}</button></td></tr>`)});aplicarFiltroEncargado();actualizarSeleccionPlan();}
-function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')seleccionarUltimoPlanDisponible(true,true)}
-function exportarCSV(){let rows=[['Fecha','Aviso','OT','Operación','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].slice(1,9).map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
+ let historicoPlan=Object.values(planUnico).map(p=>{const terreno=estadosTerreno[String(p.aviso||'').trim()];return{...p,operacion:'',puesto:'',sistema:'historico',estado:sapByOT[p.ot]?.not?'Notificada':(terreno?.estado_terreno||'Pendiente')}});
+ let nuevoPlan=sapNuevo.filter(p=>(!desde||p.fecha>=desde)&&(!hasta||p.fecha<=hasta)).map(p=>({...p,estado:clasificarStatusOperacion(p.status,p.fecha),encargado:'',turno:''}));
+ let planCalc=[...historicoPlan,...nuevoPlan].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.ot).localeCompare(String(b.ot))||String(a.operacion).localeCompare(String(b.operacion)));
+ planActualPorAviso={};planCalc.filter(p=>p.sistema==='historico').forEach(p=>{if(p.aviso)planActualPorAviso[String(p.aviso).trim()]=p});
+ let total=planCalc.length,notif=planCalc.filter(x=>x.estado==='Notificada').length,pend=total-notif,evaluables=planCalc.filter(x=>x.estado!=='Programada').length,pp=evaluables?Math.round(notif/evaluables*100):null;
+ $('planTotal').textContent=total;$('planNotif').textContent=notif;$('planPend').textContent=pend;$('planPct').textContent=pp==null?'—':pp+'%';$('planBar').style.width=(pp||0)+'%';chart('chartPlan','doughnut',['Notificadas','Vencidas','Para hoy','Programadas'],['Notificada','Vencida','Para hoy','Programada'].map(e=>planCalc.filter(x=>x.estado===e).length),'operaciones',[COLORS.green,COLORS.red,COLORS.orange,COLORS.sky]);
+ const incluyeHistorico=!!historicoPlan.length;document.querySelectorAll('.soloHistorico').forEach(el=>el.classList.toggle('hidden',!incluyeHistorico));
+ let enc={};historicoPlan.forEach(p=>{let k=p.encargado||'Sin encargado';if(!enc[k])enc[k]={t:0,n:0};enc[k].t++;if(p.estado==='Notificada')enc[k].n++});const encargados=Object.keys(enc);if(incluyeHistorico){chart('chartEnc','bar',encargados,Object.values(enc).map(x=>x.t?Math.round(x.n/x.t*100):0),'% cumplimiento');mostrarBotonesEncargados(encargados);activarFiltroGraficoEncargados()}else{destroy('chartEnc');encargadoPlanFiltrado='';}
+ let tp=$('tablaPlan').querySelector('tbody');tp.innerHTML='';planCalc.forEach(p=>{const estadoClase=p.estado==='Notificada'?'ok':p.estado==='Programada'?'programada':p.estado==='Para hoy'?'hoy':p.estado==='Vencida'?'bad':p.estado==='Realizado'?'realizado':p.estado==='En ejecución'?'ejecucion':'bad';const fecha=htmlSeguro(showDate(p.fecha)),trabajo=htmlSeguro(p.trabajo),aviso=htmlSeguro(p.aviso),orden=htmlSeguro(p.ot),operacion=htmlSeguro(p.operacion),encargado=htmlSeguro(p.encargado),turno=htmlSeguro(p.turno),estado=htmlSeguro(p.estado);const botonEstado=p.sistema==='historico'?`<button type="button" class="pill estadoBtn ${estadoClase}" data-aviso="${encodeURIComponent(String(p.aviso||''))}" title="Abrir actualización del aviso">${estado}</button>`:`<span class="pill ${estadoClase}">${estado}</span>`;tp.insertAdjacentHTML('beforeend',`<tr data-estado="${estado}" data-encargado="${encargado}"><td class="planSeleccion"><input type="checkbox" class="planFilaCheck" aria-label="Seleccionar operación ${operacion||orden}" data-fecha="${fecha}" data-aviso="${aviso}" data-orden="${orden}" data-operacion="${operacion}" data-trabajo="${trabajo}" data-encargado="${encargado}" data-turno="${turno}" data-estado="${estado}"></td><td>${fecha}</td><td><span class="copiable-sap" data-copy="${aviso}" data-tipo="Aviso" title="Clic para copiar aviso">${aviso}</span></td><td><b class="copiable-sap" data-copy="${orden}" data-tipo="Orden" title="Clic para copiar orden">${orden}</b></td><td><span class="copiable-sap" data-copy="${operacion}" data-tipo="Operación" title="Clic para copiar operación">${operacion}</span></td><td><span class="copiable-sap" data-copy="${trabajo}" data-tipo="Trabajo" title="Clic para copiar trabajo">${trabajo}</span></td><td class="soloHistorico">${encargado}</td><td class="soloHistorico">${turno}</td><td>${botonEstado}</td></tr>`)});aplicarFiltroEncargado();actualizarSeleccionPlan();}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.side button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='plan')render()}
+function exportarCSV(){let rows=[['Fecha','Aviso','Orden','Operación','Trabajo','Encargado','Turno','Estado']];document.querySelectorAll('#tablaPlan tbody tr').forEach(tr=>rows.push([...tr.children].slice(1,9).map(td=>td.innerText)));let csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cumplimiento_plan_semanal.csv';a.click()}
 
 function checksPlan(){return [...document.querySelectorAll('#tablaPlan .planFilaCheck')]}
 function actualizarSeleccionPlan(){
@@ -655,7 +714,7 @@ async function escribirPortapapeles(valor){
 async function copiarSeleccionPlan(){
   const seleccion=checksPlan().filter(x=>x.checked);
   if(!seleccion.length)return;
-  const texto=seleccion.map(x=>[x.dataset.fecha,x.dataset.aviso,x.dataset.orden,x.dataset.operacion,x.dataset.trabajo,x.dataset.encargado,x.dataset.turno].join('\t')).join('\n');
+  const texto=seleccion.map(x=>[x.dataset.fecha,x.dataset.aviso,x.dataset.orden,x.dataset.operacion,x.dataset.trabajo,...(x.dataset.encargado||x.dataset.turno?[x.dataset.encargado,x.dataset.turno]:[])].join('\t')).join('\n');
   try{
     await escribirPortapapeles(texto);
     seleccion.forEach(check=>check.checked=false);
@@ -967,14 +1026,15 @@ async function capturarGraficosInforme(){
   return images;
 }
 function buildPdfTablePlan(rows){
-  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Trabajo</th><th>Encargado</th><th>Turno</th><th>Estado</th></tr></thead><tbody>';
+  const incluyeHistorico=rows.some(tr=>tr.dataset.encargado);
+  let html='<table class="pdfPlanTable"><thead><tr><th>Fecha</th><th>Aviso</th><th>Orden</th><th>Operación</th><th>Trabajo</th>'+(incluyeHistorico?'<th>Encargado</th><th>Turno</th>':'')+'<th>Estado</th></tr></thead><tbody>';
   rows.forEach(tr=>{
     const t=[...tr.children].slice(1).map(td=>td.innerText.trim());
-    const estado=(t[6]||'Pendiente').toLowerCase();
-    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[6]}</span>`:`<span class="pdfBadgeBad">${t[6]||'Pendiente'}</span>`;
-    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td><td>${t[5]||''}</td><td>${badge}</td></tr>`;
+    const estado=(t[7]||'Pendiente').toLowerCase();
+    const badge=estado.includes('notificada')?`<span class="pdfBadgeOk">${t[7]}</span>`:`<span class="pdfBadgeBad">${t[7]||'Pendiente'}</span>`;
+    html+=`<tr><td>${t[0]||''}</td><td>${t[1]||''}</td><td>${t[2]||''}</td><td>${t[3]||''}</td><td>${t[4]||''}</td>${incluyeHistorico?`<td>${t[5]||''}</td><td>${t[6]||''}</td>`:''}<td>${badge}</td></tr>`;
   });
-  if(!rows.length)html+='<tr><td colspan="7">No hay avisos para los filtros seleccionados.</td></tr>';
+  if(!rows.length)html+='<tr><td colspan="8">No hay operaciones para los filtros seleccionados.</td></tr>';
   html+='</tbody></table>'; return html;
 }
 function buildPdfTableDia(rows=[...document.querySelectorAll('#tablaDia tbody tr')]){
@@ -1006,7 +1066,7 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
   const hh=safeText('hhReal'), meta=safeText('hhMeta'), desv=safeText('desvHH'), cumpl=safeText('cumplHH'), ots=safeText('otEjecutadas'), prom=safeText('promHH');
   const pt=safeText('planTotal'), pn=safeText('planNotif'), pp=safeText('planPend'), pc=safeText('planPct');
   const comentario1=`Durante el período analizado se registraron ${hh} HH frente a una meta de ${meta} HH, alcanzando un cumplimiento de ${cumpl}. Se ejecutaron ${ots} órdenes de mantenimiento, con un promedio de ${prom} HH por orden.`;
-  const comentario2=`Durante la semana se programaron ${pt} órdenes de trabajo, de las cuales ${pn} fueron notificadas. Permanecen ${pp} OT pendientes, alcanzando un cumplimiento del Plan Semanal de ${pc}.`;
+  const comentario2=`Durante el período se programaron ${pt} operaciones, de las cuales ${pn} fueron notificadas. Permanecen ${pp} operaciones no notificadas, incluidas las futuras programadas. El cumplimiento evaluable del Plan es ${pc}.`;
   const filasDiarias=[...document.querySelectorAll('#tablaDia tbody tr')];
   const bloquesDiarios=[];
   if(!filasDiarias.length)bloquesDiarios.push([]);else for(let i=0;i<filasDiarias.length;i+=26)bloquesDiarios.push(filasDiarias.slice(i,i+26));
@@ -1026,7 +1086,7 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
   const paginasPlanDetalle=bloquesPlan.map((filas,i)=>`
   <section class="pdfPage pdfPagePlan" data-seccion="plan" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Detalle Plan Semanal${contextoPlan}${bloquesPlan.length>1?` - Parte ${i+1} de ${bloquesPlan.length}`:''}</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
-    <div class="pdfBox"><h3>Listado completo (${filasPlan.length} avisos)</h3>${buildPdfTablePlan(filas)}</div>
+    <div class="pdfBox"><h3>Listado completo (${filasPlan.length} operaciones)</h3>${buildPdfTablePlan(filas)}</div>
     <div class="pdfFooter"><span>Dashboard HH Mantención SAP – Piscicultura Lago Verde</span><span></span></div>
   </section>`).join('');
   const rep=$('printReport');
@@ -1045,7 +1105,7 @@ async function generarInformePDF(imprimir=true,secciones=['resumen','diario','pl
   <section class="pdfPage pdfPagePlan" data-seccion="plan" style="position:relative">
     <div class="pdfHead"><img class="pdfLogo" src="${logo}"><div class="pdfTitle"><h1>INFORME EJECUTIVO HH MANTENCIÓN SAP</h1><h2>Cumplimiento Plan Semanal</h2></div><div class="pdfMeta"><b>Período:</b><br>${periodo}<br><br><b>Emisión:</b><br>${now}</div></div>
     <div class="pdfKpis" style="grid-template-columns:repeat(4,1fr)">
-      <div class="pdfKpi"><b>OT Planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>OT Notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>OT Pendientes</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento Plan</b><span>${pc}</span></div>
+      <div class="pdfKpi"><b>Operaciones planificadas</b><span>${pt}</span></div><div class="pdfKpi"><b>Operaciones notificadas</b><span>${pn}</span></div><div class="pdfKpi"><b>Operaciones no notificadas</b><span>${pp}</span></div><div class="pdfKpi"><b>Cumplimiento evaluable</b><span>${pc}</span></div>
     </div>
     <div class="pdfGrid2"><div class="pdfBox"><h3>Cumplimiento Plan Semanal</h3>${canvasImg('chartPlan','pdfChart',chartImages)}</div><div class="pdfBox"><h3>Cumplimiento por encargado</h3>${canvasImg('chartEnc','pdfChart',chartImages)}</div></div>
     <div class="pdfBox"><h3>Resumen Plan Semanal</h3><div class="pdfComment">${comentario2}</div></div>

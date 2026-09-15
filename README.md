@@ -2,6 +2,42 @@
 
 **Piscicultura Lago Verde**
 
+## Línea de tiempo de datos (v3.11.0)
+
+- **Hasta la Semana 37 de 2026:** se conserva el sistema histórico actual, incluidos los Excel `SemanaXX.xlsx`, las HH netas históricas y los estados de terreno consolidados mediante Google Sheets.
+- **Desde la Semana 38 de 2026:** se usa el nuevo export SAP. La fecha de corte es el lunes **14-09-2026** y está centralizada en `FECHA_CORTE_SEMANA_38_2026`.
+- Un archivo SAP anual no reemplaza los datos anteriores al corte. Sus filas anteriores al 14-09-2026 se ignoran en el sistema nuevo.
+- Las consultas Semana, Mes y Año combinan ambas fuentes cuando el período cruza el corte.
+
+## Nuevo export SAP
+
+El archivo se detecta automáticamente entre los Excel de `datos/`. Sus encabezados se reconocen por nombre normalizado y no por posición. Columnas requeridas:
+
+- `Inic.extr.` o `Fecha de inicio extrema`: fecha principal de planificación.
+- `Aviso` y `Orden`.
+- `Op.` u `Operación`.
+- `Texto breve operación`: descripción principal del trabajo.
+- `Pto.tbjo.op.` o `Pto.tbjo.operación`: puesto de trabajo conservado en el modelo. Para esta etapa corresponde al responsable único **Asistente de mantención**.
+- `Status sistema op.`: única fuente del estado nuevo.
+- `Trabajo real`: HH reales directas; por ejemplo, `1,500` se interpreta como `1.5`.
+
+Desde el corte, cada registro se identifica por **Orden + Operación**. No se elimina una operación por tener cero HH y no se descartan fechas futuras.
+
+## Estados desde Semana 38
+
+El estado se normaliza y evalúa en este orden:
+
+1. Si contiene `INBO`, la operación se excluye completamente.
+2. Si comienza con `CTEC` o `CETEC`, se excluye. `NOTI CTEC...` no se excluye porque CTEC no está al comienzo.
+3. Si contiene `NOTI`, queda **Notificada**.
+4. Si contiene `LIB.`, queda **Vencida**, **Para hoy** o **Programada** según la fecha frente al día actual.
+
+Las semanas se calculan en formato ISO, de lunes a domingo, desde la Fecha de inicio extrema. Las operaciones Programadas permanecen visibles, pero no integran el denominador del cumplimiento del Plan hasta que su fecha sea evaluable. Si toda la consulta es futura, el cumplimiento se muestra como `—`.
+
+El cumplimiento HH conserva las metas operacionales: 11,7 HH por día, 87,5 HH por semana y 350 HH por mes; una consulta anual suma 350 HH por cada mes incluido.
+
+Encargado, Turno, sus filtros y el gráfico por encargado se conservan solamente para consultas con información histórica. Google Sheets no determina ningún estado desde la Semana 38.
+
 ## Estructura del proyecto
 
 - `index.html`: estructura principal del dashboard.
@@ -42,19 +78,6 @@ datos/
 ```
 
 Después de reemplazar archivos, realiza un commit y actualiza el sitio con `Ctrl + F5`.
-
-## Cambios v3.10.19
-
-- Agrega la columna `Operación` después de `N° orden` en el detalle del plan para los archivos desde Semana 37 en adelante.
-- Incluye `Operación` al copiar filas seleccionadas y al exportar CSV.
-- Mantiene compatibles los planes anteriores que no contienen esa columna.
-
-## Cambios v3.10.18
-
-- Todos los gráficos usan el período seleccionado: semanal, mensual o anual.
-- En modo semanal, el gráfico principal compara únicamente la semana elegida contra 87,5 HH.
-- Los títulos indican la semana seleccionada en vez de mostrar los meses que atraviesa esa semana.
-- En modo mensual se muestra solo el mes consultado; en modo anual se mantiene el desglose mensual.
 
 ## Cambios v3.10.17
 
